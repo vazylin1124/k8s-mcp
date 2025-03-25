@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "description": "Kubernetes MCP Service",
   "scripts": {
-    "dev:http": "SMITHERY=false NODE_ENV=development node --loader ts-node/esm src/index.ts",
-    "dev:smithery": "SMITHERY=true NODE_ENV=development node --loader ts-node/esm src/index.ts",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
     "build": "tsc",
-    "start:http": "SMITHERY=false NODE_ENV=production node -r dotenv/config dist/index.js",
-    "start:smithery": "SMITHERY=true NODE_ENV=production node -r dotenv/config dist/index.js",
-    "start": "node -r dotenv/config dist/index.js"
+    "dev:http": "cross-env SMITHERY=false PORT=8080 ts-node -r dotenv/config src/index.ts",
+    "dev:smithery": "cross-env SMITHERY=true ts-node -r dotenv/config src/index.ts",
+    "start:http": "cross-env SMITHERY=false PORT=8080 node -r dotenv/config dist/index.js",
+    "start:smithery": "cross-env SMITHERY=true node -r dotenv/config dist/index.js",
+    "start": "npm run start:http"
   },
   "keywords": [
     "kubernetes",
@@ -29,6 +31,8 @@
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.19",
     "@types/ws": "^8.5.10",
+    "cross-env": "^7.0.3",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"

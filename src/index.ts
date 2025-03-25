@@ -335,22 +335,40 @@ if (isSmithery) {
     try {
       await new Promise<void>((resolve, reject) => {
         const tryListen = () => {
-          server.close(() => {
-            server.listen(port, '0.0.0.0')
-              .once('listening', () => {
+          log.info(`Attempting to start server on port ${port}...`);
+          
+          // 先尝试关闭现有的服务器
+          if (server.listening) {
+            log.info('Server is already listening, closing first...');
+            server.close(() => {
+              log.info('Existing server closed');
+              startListening();
+            });
+          } else {
+            startListening();
+          }
+        };
+
+        const startListening = () => {
+          server.listen(port, '0.0.0.0')
+            .once('listening', () => {
+              const address = server.address();
+              if (address && typeof address === 'object') {
+                log.info(`Server is running on http://0.0.0.0:${address.port}`);
+              } else {
                 log.info(`Server is running on port ${port}`);
-                resolve();
-              })
-              .once('error', (error: any) => {
-                if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
-                  log.warn(`Port ${port} is in use, trying port ${port + 1}`);
-                  port++;
-                  tryListen();
-                } else {
-                  reject(error);
-                }
-              });
-          });
+              }
+              resolve();
+            })
+            .once('error', (error: any) => {
+              if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
+                log.warn(`Port ${port} is in use, trying port ${port + 1}`);
+                port++;
+                setTimeout(tryListen, 1000); // 添加延迟
+              } else {
+                reject(error);
+              }
+            });
         };
         
         tryListen();
@@ -362,7 +380,6 @@ if (isSmithery) {
         log.error(`Maximum retry attempts (${maxRetries}) reached. Exiting...`);
         process.exit(1);
       }
-      // 等待一秒后重试
       await new Promise(resolve => setTimeout(resolve, 1000));
       return startServer(retryCount + 1);
     }
@@ -385,5 +402,10 @@ if (isSmithery) {
     });
   });
 
-  startServer();
+  // 启动服务器
+  log.info('Starting server...');
+  startServer().catch(error => {
+    log.error('Failed to start server:', error);
+    process.exit(1);
+  });
 }

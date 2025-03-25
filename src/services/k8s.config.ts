@@ -33,7 +33,6 @@ export class K8sConfigManager {
       // 尝试从配置文件加载
       const configPath = join(process.cwd(), 'k8s_config.yaml');
       
-      // 如果配置文件不存在，创建默认配置文件
       if (!existsSync(configPath)) {
         log.warn('k8s_config.yaml not found, creating default configuration file');
         writeFileSync(configPath, stringify({
@@ -62,37 +61,16 @@ export class K8sConfigManager {
       const configData = parse(readFileSync(configPath, 'utf8'));
       
       // 验证配置
-      if (!configData || typeof configData !== 'object') {
-        throw new Error('Invalid kubernetes configuration: not a valid YAML object');
-      }
-
-      if (!configData.clusters || !Array.isArray(configData.clusters) || configData.clusters.length === 0) {
-        throw new Error('Invalid kubernetes configuration: clusters array is empty or missing');
-      }
-
-      const cluster = configData.clusters[0].cluster;
-      if (!cluster || typeof cluster !== 'object') {
-        throw new Error('Invalid kubernetes configuration: first cluster is invalid');
-      }
-
-      if (!cluster.server || typeof cluster.server !== 'string') {
-        throw new Error('Invalid kubernetes configuration: server URL is missing or invalid');
-      }
-
-      let namespace = defaultConfig.namespace;
-      if (configData.contexts && Array.isArray(configData.contexts) && configData.contexts.length > 0) {
-        const context = configData.contexts[0].context;
-        if (context && typeof context === 'object' && typeof context.namespace === 'string') {
-          namespace = context.namespace;
-        }
+      if (!configData?.clusters?.[0]?.cluster?.server) {
+        throw new Error('Invalid kubernetes configuration: missing server');
       }
 
       this.config = {
-        apiServer: cluster.server,
-        namespace: namespace
+        apiServer: configData.clusters[0].cluster.server,
+        namespace: configData.contexts?.[0]?.context?.namespace || defaultConfig.namespace
       };
 
-      log.info('Loaded kubernetes configuration:', JSON.stringify(this.config));
+      log.info('Loaded kubernetes configuration:', JSON.stringify(this.config, null, 2));
     } catch (error: any) {
       log.warn(`Failed to load kubernetes config, using default: ${error.message}`);
       this.config = defaultConfig;
@@ -109,4 +87,4 @@ export class K8sConfigManager {
   public getConfig(): K8sConfig {
     return this.config;
   }
-}
+} 
