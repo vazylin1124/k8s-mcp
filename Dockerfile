@@ -31,7 +31,7 @@ RUN if [ ! -f .env ]; then \
       fi \
     fi
 
-# 设置环境变量
+# 设置默认环境变量
 ENV PORT=3000 \
     NODE_ENV=production \
     SMITHERY=false
@@ -39,5 +39,5 @@ ENV PORT=3000 \
 # 暴露端口
 EXPOSE 3000
 
-# 使用 shell 形式的 ENTRYPOINT 来设置环境变量
-ENTRYPOINT SMITHERY=false node -r dotenv/config dist/index.js 
+# 使用 shell 形式的 ENTRYPOINT，允许环境变量覆盖
+ENTRYPOINT ["node", "-r", "dotenv/config", "dist/index.js"] 
