@@ -39,5 +39,5 @@ ENV PORT=3000 \
 # 暴露端口
 EXPOSE 3000
 
-# 使用 shell 形式的 ENTRYPOINT，允许环境变量覆盖
-ENTRYPOINT ["node", "-r", "dotenv/config", "dist/index.js"] 
+# 直接使用 node 命令启动服务，避免 npm 的额外输出
+CMD ["sh", "-c", "SMITHERY=${SMITHERY} node -r dotenv/config dist/index.js"] 
