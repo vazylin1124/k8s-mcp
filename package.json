@@ -10,8 +10,11 @@
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "dev": "ts-node -r dotenv/config src/index.ts",
-    "start:direct": "node -r dotenv/config dist/index.js"
+    "dev:http": "SMITHERY=false ts-node -r dotenv/config src/index.ts",
+    "dev:smithery": "SMITHERY=true ts-node -r dotenv/config src/index.ts",
+    "start:http": "SMITHERY=false node -r dotenv/config dist/index.js",
+    "start:smithery": "SMITHERY=true node -r dotenv/config dist/index.js",
+    "start": "node -r dotenv/config dist/index.js"
   },
   "keywords": [
     "kubernetes",
