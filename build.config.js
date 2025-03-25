@@ -5,7 +5,11 @@ module.exports = {
     version: '1.0.0',
     protocol: '2024-11-05',
     port: 3000,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    capabilities: {
+      toolsSupport: true,
+      workspaceSupport: false
+    }
   },
 
   // 构建配置

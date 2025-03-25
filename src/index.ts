@@ -26,22 +26,25 @@ try {
 }
 
 if (isSmithery) {
-  // 通过 stdio 进行 JSON-RPC 通信
+  // Smithery 模式：通过 stdio 进行 JSON-RPC 通信
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     terminal: false
   });
 
+  // 处理输入的 JSON-RPC 请求
   rl.on('line', async (line) => {
     try {
+      // 解析并处理请求
       const request = JSON.parse(line);
       const response = await mcpController.handleWebSocketRequest(request);
-      // 只输出 JSON-RPC 响应到标准输出
+      
+      // 将响应写入标准输出
       process.stdout.write(JSON.stringify(response) + '\n');
     } catch (error: any) {
-      log.error(`Error handling stdio request: ${error.message}`);
-      // 错误响应也是合法的 JSON-RPC 消息
+      // 错误也需要以 JSON-RPC 格式返回
+      log.error(`Error handling request: ${error.message}`);
       process.stdout.write(JSON.stringify({
         jsonrpc: '2.0',
         error: {
@@ -54,10 +57,12 @@ if (isSmithery) {
     }
   });
 
+  // 处理错误
   rl.on('error', (error: Error) => {
     log.error(`Readline error: ${error.message}`);
   });
 
+  // 处理关闭
   rl.on('close', () => {
     log.error('Stdin closed, exiting...');
     process.exit(0);
@@ -66,10 +71,9 @@ if (isSmithery) {
   // 初始化完成的日志输出到标准错误
   log.info('MCP server initialized in Smithery mode');
 } else {
-  // 正常的 HTTP/WebSocket 服务器模式
+  // HTTP/WebSocket 模式
   const app = express();
   const port = parseInt(process.env.PORT || '3000', 10);
-  const k8sClient = K8sClient.getInstance();
 
   // 中间件
   app.use(express.json());
@@ -262,57 +266,52 @@ if (isSmithery) {
   // MCP JSON-RPC HTTP 路由
   app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 
-  async function startServer() {
-    try {
-      // 创建 HTTP 服务器
-      const server = createServer(app);
+  // 创建 HTTP 服务器
+  const server = createServer(app);
 
-      // 创建 WebSocket 服务器
-      const wss = new WebSocketServer({ server, path: '/mcp' });
+  // 创建 WebSocket 服务器
+  const wss = new WebSocketServer({ server, path: '/mcp' });
 
-      // 处理 WebSocket 连接
-      wss.on('connection', (ws: WebSocket) => {
-        log.info('WebSocket client connected');
+  // 处理 WebSocket 连接
+  wss.on('connection', (ws: WebSocket) => {
+    log.info('WebSocket client connected');
 
-        ws.on('message', async (message: string) => {
-          try {
-            const request = JSON.parse(message.toString());
-            const response = await mcpController.handleWebSocketRequest(request);
-            ws.send(JSON.stringify(response));
-          } catch (error: any) {
-            log.error(`WebSocket error: ${error.message}`);
-            ws.send(JSON.stringify({
-              jsonrpc: '2.0',
-              error: {
-                code: -32000,
-                message: 'Internal error',
-                data: error.message
-              },
-              id: null
-            }));
-          }
-        });
+    ws.on('message', async (message: string) => {
+      try {
+        const request = JSON.parse(message.toString());
+        const response = await mcpController.handleWebSocketRequest(request);
+        ws.send(JSON.stringify(response));
+      } catch (error: any) {
+        log.error(`WebSocket error: ${error.message}`);
+        ws.send(JSON.stringify({
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Internal error',
+            data: error.message
+          },
+          id: null
+        }));
+      }
+    });
 
-        ws.on('error', (error: Error) => {
-          log.error(`WebSocket error: ${error.message}`);
-        });
+    ws.on('error', (error: Error) => {
+      log.error(`WebSocket error: ${error.message}`);
+    });
 
-        ws.on('close', () => {
-          log.info('WebSocket client disconnected');
-        });
-      });
+    ws.on('close', () => {
+      log.info('WebSocket client disconnected');
+    });
+  });
 
-      // 启动服务器，日志输出到标准错误
-      server.listen(port, '0.0.0.0', () => {
-        log.error(`Server is running on port ${port}`);
-      });
-    } catch (error: unknown) {
-      // 对 unknown 类型的错误进行类型检查
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to start server: ${errorMessage}`);
-      process.exit(1);
-    }
+  // 启动服务器
+  try {
+    server.listen(port, '0.0.0.0', () => {
+      log.info(`Server is running on port ${port}`);
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Failed to start server: ${errorMessage}`);
+    process.exit(1);
   }
-
-  startServer();
 }
