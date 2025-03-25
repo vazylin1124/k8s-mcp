@@ -1,4 +1,8 @@
 export interface MCPConfig {
+  apiServer: string;
+  namespace: string;
+  port?: number;
+  host?: string;
   mcpServers: {
     [key: string]: {
       command: string;

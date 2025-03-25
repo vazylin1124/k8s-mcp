@@ -19,66 +19,67 @@ export class K8sConfigManager {
   private config: K8sConfig;
 
   private constructor() {
-    // 检查是否在 Smithery 模式下运行
-    const isSmithery = process.env.SMITHERY === 'true';
-
     // 默认配置
     const defaultConfig: K8sConfig = {
       apiServer: 'https://kubernetes.default.svc',
       namespace: 'default'
     };
 
+    // 检查是否在 Smithery 模式下运行
+    const isSmithery = process.env.SMITHERY === 'true';
+
     if (isSmithery) {
       // Smithery 模式下使用默认配置
       this.config = defaultConfig;
       log.info('Running in Smithery mode, using default configuration');
-    } else {
-      try {
-        // 尝试从配置文件加载
-        const configPath = join(process.cwd(), 'k8s_config.yaml');
-        
-        // 如果配置文件不存在，创建默认配置文件
-        if (!existsSync(configPath)) {
-          log.warn('k8s_config.yaml not found, creating default configuration file');
-          writeFileSync(configPath, stringify({
-            apiVersion: 'v1',
-            kind: 'Config',
-            clusters: [{
-              name: 'default',
-              cluster: {
-                server: defaultConfig.apiServer,
-                'insecure-skip-tls-verify': true
-              }
-            }],
-            contexts: [{
-              name: 'default',
-              context: {
-                cluster: 'default',
-                namespace: defaultConfig.namespace
-              }
-            }],
-            'current-context': 'default',
-            preferences: {}
-          }));
-        }
+      return;
+    }
 
-        const configData = parse(readFileSync(configPath, 'utf8'));
-        
-        // 验证配置
-        if (!configData?.clusters?.[0]?.cluster?.server) {
-          throw new Error('Invalid kubernetes configuration: missing server');
-        }
-
-        this.config = {
-          apiServer: configData.clusters[0].cluster.server,
-          namespace: configData.contexts?.[0]?.context?.namespace || defaultConfig.namespace
-        };
-
-        log.info('Loaded kubernetes configuration:', JSON.stringify(this.config));
-      } catch (error) {
-        log.warn('Failed to load kubernetes config, using default:', error);
-        this.config = defaultConfig;
+    try {
+      // 尝试从配置文件加载
+      const configPath = join(process.cwd(), 'k8s_config.yaml');
+      
+      // 如果配置文件不存在，创建默认配置文件
+      if (!existsSync(configPath)) {
+        log.warn('k8s_config.yaml not found, creating default configuration file');
+        writeFileSync(configPath, stringify({
+          apiVersion: 'v1',
+          kind: 'Config',
+          clusters: [{
+            name: 'default',
+            cluster: {
+              server: defaultConfig.apiServer,
+              'insecure-skip-tls-verify': true
+            }
+          }],
+          contexts: [{
+            name: 'default',
+            context: {
+              cluster: 'default',
+              namespace: defaultConfig.namespace
+            }
+          }],
+          'current-context': 'default',
+          preferences: {}
+        }));
       }
+
+      const configData = parse(readFileSync(configPath, 'utf8'));
+      
+      // 验证配置
+      if (!configData?.clusters?.[0]?.cluster?.server) {
+        throw new Error('Invalid kubernetes configuration: missing server');
+      }
+
+      this.config = {
+        apiServer: configData.clusters[0].cluster.server,
+        namespace: configData.contexts?.[0]?.context?.namespace || defaultConfig.namespace
+      };
+
+      log.info('Loaded kubernetes configuration:', JSON.stringify(this.config));
+    } catch (error) {
+      log.warn('Failed to load kubernetes config, using default:', error);
+      this.config = defaultConfig;
     }
   }
 
