@@ -183,6 +183,9 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
 // MCP JSON-RPC 路由
 app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 
-app.listen(port, () => {
-  console.log(`K8s MCP Service is running on port ${port}`);
+const host = '0.0.0.0';
+const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
+
+app.listen(portNumber, host, () => {
+  console.log(`K8s MCP Service is running on http://${host}:${portNumber}`);
 });
