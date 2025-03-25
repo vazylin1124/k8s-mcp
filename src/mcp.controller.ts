@@ -29,9 +29,37 @@ interface JsonRpcResponse {
 
 export class MCPController {
   private k8sClient: K8sClient;
+  private tools: any[];
 
   constructor() {
     this.k8sClient = K8sClient.getInstance();
+    this.tools = [
+      {
+        name: 'k8s_pod_status',
+        description: 'Get Kubernetes pod status',
+        parameters: {
+          namespace: { type: 'string', optional: true },
+          selector: { type: 'string', optional: true }
+        }
+      },
+      {
+        name: 'k8s_pod_describe',
+        description: 'Describe Kubernetes pod',
+        parameters: {
+          namespace: { type: 'string', optional: true },
+          pod_name: { type: 'string', required: true }
+        }
+      },
+      {
+        name: 'k8s_pod_logs',
+        description: 'Get Kubernetes pod logs',
+        parameters: {
+          namespace: { type: 'string', optional: true },
+          pod_name: { type: 'string', required: true },
+          container: { type: 'string', optional: true }
+        }
+      }
+    ];
   }
 
   private createResponse(request: MCPRequest, result?: any, error?: { code: number; message: string; data?: any }): MCPResponse {
@@ -59,6 +87,7 @@ export class MCPController {
           await this.handleInitialize(jsonRpcRequest, res);
           break;
         case 'get_tools':
+        case 'tools/list':
           await this.handleGetTools(jsonRpcRequest, res);
           break;
         case 'get_pod_status':
@@ -94,35 +123,7 @@ export class MCPController {
   }
 
   private async handleGetTools(request: JsonRpcRequest, res: Response): Promise<void> {
-    const tools = [
-      {
-        name: 'k8s_pod_status',
-        description: 'Get Kubernetes pod status',
-        parameters: {
-          namespace: { type: 'string', optional: true },
-          selector: { type: 'string', optional: true }
-        }
-      },
-      {
-        name: 'k8s_pod_describe',
-        description: 'Describe Kubernetes pod',
-        parameters: {
-          namespace: { type: 'string', optional: true },
-          pod_name: { type: 'string', required: true }
-        }
-      },
-      {
-        name: 'k8s_pod_logs',
-        description: 'Get Kubernetes pod logs',
-        parameters: {
-          namespace: { type: 'string', optional: true },
-          pod_name: { type: 'string', required: true },
-          container: { type: 'string', optional: true }
-        }
-      }
-    ];
-
-    this.sendJsonRpcResponse(res, tools, request.id);
+    this.sendJsonRpcResponse(res, this.tools, request.id);
   }
 
   private async handleGetPodStatus(request: JsonRpcRequest, res: Response): Promise<void> {
