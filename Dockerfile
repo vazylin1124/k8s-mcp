@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# 复制 package.json 和配置文件
+# 复制 package.json 和 package-lock.json
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY .env* ./
@@ -12,7 +12,7 @@ RUN if [ ! -f .env ]; then \
       if [ -f .env.example ]; then \
         cp .env.example .env; \
       else \
-        echo "PORT=8080\nNODE_ENV=production" > .env; \
+        echo "PORT=3000\nNODE_ENV=production" > .env; \
       fi \
     fi
 
@@ -29,11 +29,11 @@ RUN npm run build
 RUN npm prune --production
 
 # 设置环境变量
-ENV PORT=8080
+ENV PORT=3000
 ENV NODE_ENV=production
 
 # 暴露端口
-EXPOSE 8080
+EXPOSE 3000
 
 # 启动服务
 CMD ["npm", "start"] 
