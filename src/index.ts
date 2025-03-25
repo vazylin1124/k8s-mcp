@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { K8sClient } from './k8s.client';
 import { MCPController } from './mcp.controller';
-import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
+import { V1Pod, V1ContainerStatus, V1PodCondition } from '@kubernetes/client-node';
 import { createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import * as readline from 'readline';
@@ -74,6 +74,7 @@ if (isSmithery) {
   // HTTP/WebSocket 模式
   const app = express();
   const port = parseInt(process.env.PORT || '3000', 10);
+  const k8sClient = K8sClient.getInstance();
 
   // 中间件
   app.use(express.json());
@@ -174,7 +175,7 @@ if (isSmithery) {
             const podDetails = await k8sClient.describePod(pod.podName, pod.namespace);
             if (podDetails.status?.conditions) {
               const events = podDetails.status.conditions
-                .map(condition => {
+                .map((condition: V1PodCondition) => {
                   const time = condition.lastTransitionTime || '';
                   const type = condition.type || '';
                   const status = condition.status || '';
