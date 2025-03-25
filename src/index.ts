@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { K8sClient } from './k8s.client';
 import { MCPController } from './mcp.controller';
+import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,12 +41,26 @@ app.post('/api/k8s/pods/status', async (req: Request<{}, {}, K8sRequestParams>, 
     const problemPods: Array<{ namespace: string; podName: string; status: string }> = [];
     
     for (const pod of podsResponse.items) {
-      const status = pod.status.phase;
-      const namespace = pod.metadata.namespace;
-      const name = pod.metadata.name;
-      const ready = `${pod.status.containerStatuses?.filter((c: any) => c.ready).length || 0}/${pod.spec.containers.length}`;
-      const restarts = pod.status.containerStatuses?.reduce((sum: number, c: any) => sum + c.restartCount, 0) || 0;
-      const age = Math.floor((Date.now() - new Date(pod.metadata.creationTimestamp).getTime()) / 1000 / 60);
+      if (!pod.status || !pod.metadata || !pod.spec) {
+        console.warn('Skipping pod with missing required fields');
+        continue;
+      }
+
+      const status = pod.status.phase || 'Unknown';
+      const namespace = pod.metadata.namespace || 'default';
+      const name = pod.metadata.name || 'unknown';
+      
+      const containerStatuses: V1ContainerStatus[] = pod.status.containerStatuses || [];
+      const readyContainers = containerStatuses.filter(c => c.ready).length;
+      const totalContainers = pod.spec.containers?.length || 0;
+      const ready = `${readyContainers}/${totalContainers}`;
+      
+      const restarts = containerStatuses.reduce((sum, c) => sum + (c.restartCount || 0), 0);
+      const creationTime = pod.metadata.creationTimestamp 
+        ? new Date(pod.metadata.creationTimestamp).getTime()
+        : Date.now();
+      const age = Math.floor((Date.now() - creationTime) / 1000 / 60);
+      
       const ip = pod.status.podIP || '';
       const node = pod.spec.nodeName || '';
       
@@ -74,12 +89,21 @@ app.post('/api/k8s/pods/status', async (req: Request<{}, {}, K8sRequestParams>, 
         
         try {
           const podDetails = await k8sClient.describePod(pod.podName, pod.namespace);
-          const events = podDetails.status.conditions
-            .map((condition: any) => `${condition.lastTransitionTime} ${condition.type} ${condition.status} ${condition.reason || ''} ${condition.message || ''}`)
-            .join('\n');
-          
-          if (events) {
-            formattedOutput += '\n  Recent events:\n```\n' + events + '\n```\n';
+          if (podDetails.status?.conditions) {
+            const events = podDetails.status.conditions
+              .map(condition => {
+                const time = condition.lastTransitionTime || '';
+                const type = condition.type || '';
+                const status = condition.status || '';
+                const reason = condition.reason || '';
+                const message = condition.message || '';
+                return `${time} ${type} ${status} ${reason} ${message}`;
+              })
+              .join('\n');
+            
+            if (events) {
+              formattedOutput += '\n  Recent events:\n```\n' + events + '\n```\n';
+            }
           }
         } catch (error: any) {
           formattedOutput += `\n  Could not get pod details: ${error.message}\n`;
@@ -138,7 +162,7 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
 
     const logs = await k8sClient.getPodLogs(params.pod_name, params.namespace, params.container);
     
-    if (!logs.trim()) {
+    if (!logs || !logs.trim()) {
       return res.json({
         content: [{ type: 'text', text: 'No logs available for the specified pod/container.' }]
       });
