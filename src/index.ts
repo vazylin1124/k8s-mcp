@@ -1,0 +1,159 @@
+import express, { Request, Response } from 'express';
+import { K8sClient } from './k8s.client';
+
+const app = express();
+const port = process.env.PORT || 3000;
+const k8sClient = K8sClient.getInstance();
+
+// 中间件
+app.use(express.json());
+
+interface ErrorResponse {
+  content: Array<{ type: string; text: string }>;
+  isError: boolean;
+}
+
+interface K8sRequestParams {
+  namespace?: string;
+  pod_name?: string;
+  selector?: string;
+  kubeconfig_path?: string;
+  context?: string;
+  all_namespaces?: boolean;
+  container?: string;
+  tail_lines?: number;
+  previous?: boolean;
+}
+
+// Pod 状态检查
+app.post('/api/k8s/pods/status', async (req: Request<{}, {}, K8sRequestParams>, res: Response) => {
+  try {
+    const params = req.body;
+    const podsResponse = await k8sClient.getPods(params.namespace);
+    
+    let formattedOutput = '```\n';
+    formattedOutput += 'NAMESPACE  NAME  READY  STATUS  RESTARTS  AGE  IP  NODE\n';
+    
+    const podStatuses: Record<string, number> = {};
+    const problemPods: Array<{ namespace: string; podName: string; status: string }> = [];
+    
+    for (const pod of podsResponse.items) {
+      const status = pod.status.phase;
+      const namespace = pod.metadata.namespace;
+      const name = pod.metadata.name;
+      const ready = `${pod.status.containerStatuses?.filter((c: any) => c.ready).length || 0}/${pod.spec.containers.length}`;
+      const restarts = pod.status.containerStatuses?.reduce((sum: number, c: any) => sum + c.restartCount, 0) || 0;
+      const age = Math.floor((Date.now() - new Date(pod.metadata.creationTimestamp).getTime()) / 1000 / 60);
+      const ip = pod.status.podIP || '';
+      const node = pod.spec.nodeName || '';
+      
+      formattedOutput += `${namespace}  ${name}  ${ready}  ${status}  ${restarts}  ${age}m  ${ip}  ${node}\n`;
+      
+      podStatuses[status] = (podStatuses[status] || 0) + 1;
+      
+      if (status !== 'Running' && status !== 'Completed') {
+        problemPods.push({ namespace, podName: name, status });
+      }
+    }
+    
+    formattedOutput += '```\n\n';
+    
+    // 添加状态摘要
+    formattedOutput += '### Pod Status Summary\n';
+    for (const [status, count] of Object.entries(podStatuses)) {
+      formattedOutput += `- ${status}: ${count} pod(s)\n`;
+    }
+    
+    // 添加问题 Pod 信息
+    if (problemPods.length > 0) {
+      formattedOutput += '\n### Problem Pods\n';
+      for (const pod of problemPods) {
+        formattedOutput += `- Namespace: ${pod.namespace}, Pod: ${pod.podName}, Status: ${pod.status}\n`;
+        
+        try {
+          const podDetails = await k8sClient.describePod(pod.podName, pod.namespace);
+          const events = podDetails.status.conditions
+            .map((condition: any) => `${condition.lastTransitionTime} ${condition.type} ${condition.status} ${condition.reason || ''} ${condition.message || ''}`)
+            .join('\n');
+          
+          if (events) {
+            formattedOutput += '\n  Recent events:\n```\n' + events + '\n```\n';
+          }
+        } catch (error: any) {
+          formattedOutput += `\n  Could not get pod details: ${error.message}\n`;
+        }
+      }
+    }
+    
+    res.json({
+      content: [{ type: 'text', text: formattedOutput }]
+    });
+  } catch (error: any) {
+    console.error('Error in check_pod_status:', error);
+    res.status(500).json({
+      content: [{ type: 'text', text: `Error checking pod status: ${error.message}` }],
+      isError: true
+    });
+  }
+});
+
+// Pod 详情
+app.post('/api/k8s/pods/describe', async (req: Request<{}, {}, K8sRequestParams>, res: Response) => {
+  try {
+    const params = req.body;
+    if (!params.pod_name) {
+      return res.status(400).json({
+        content: [{ type: 'text', text: 'Pod name is required' }],
+        isError: true
+      });
+    }
+
+    const podDetails = await k8sClient.describePod(params.pod_name, params.namespace);
+    const formattedOutput = JSON.stringify(podDetails, null, 2);
+    
+    res.json({
+      content: [{ type: 'text', text: '```\n' + formattedOutput + '\n```' }]
+    });
+  } catch (error: any) {
+    console.error('Error in describe_pod:', error);
+    res.status(500).json({
+      content: [{ type: 'text', text: `Error describing pod: ${error.message}` }],
+      isError: true
+    });
+  }
+});
+
+// Pod 日志
+app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, res: Response) => {
+  try {
+    const params = req.body;
+    if (!params.pod_name) {
+      return res.status(400).json({
+        content: [{ type: 'text', text: 'Pod name is required' }],
+        isError: true
+      });
+    }
+
+    const logs = await k8sClient.getPodLogs(params.pod_name, params.namespace, params.container);
+    
+    if (!logs.trim()) {
+      return res.json({
+        content: [{ type: 'text', text: 'No logs available for the specified pod/container.' }]
+      });
+    }
+    
+    res.json({
+      content: [{ type: 'text', text: '```\n' + logs + '\n```' }]
+    });
+  } catch (error: any) {
+    console.error('Error in get_pod_logs:', error);
+    res.status(500).json({
+      content: [{ type: 'text', text: `Error retrieving pod logs: ${error.message}` }],
+      isError: true
+    });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`K8s MCP Service is running on port ${port}`);
+});
