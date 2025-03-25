@@ -13,6 +13,7 @@ export class MockK8sClient {
   }
 
   public async getPods(_namespace?: string): Promise<V1PodList> {
+    const now = new Date();
     return {
       kind: 'PodList',
       apiVersion: 'v1',
@@ -24,7 +25,7 @@ export class MockK8sClient {
           metadata: {
             name: 'mock-pod',
             namespace: 'default',
-            creationTimestamp: new Date().toISOString(),
+            creationTimestamp: now,
           },
           spec: {
             containers: [
@@ -43,7 +44,7 @@ export class MockK8sClient {
                 restartCount: 0,
                 state: {
                   running: {
-                    startedAt: new Date().toISOString(),
+                    startedAt: now,
                   },
                 },
               },
@@ -56,11 +57,12 @@ export class MockK8sClient {
   }
 
   public async describePod(name: string, namespace: string = 'default'): Promise<V1Pod> {
+    const now = new Date();
     return {
       metadata: {
         name,
         namespace,
-        creationTimestamp: new Date().toISOString(),
+        creationTimestamp: now,
       },
       spec: {
         containers: [
@@ -76,7 +78,7 @@ export class MockK8sClient {
           {
             type: 'Ready',
             status: 'True',
-            lastTransitionTime: new Date().toISOString(),
+            lastTransitionTime: now,
             reason: 'MockReady',
             message: 'Mock pod is ready',
           },
@@ -88,7 +90,7 @@ export class MockK8sClient {
             restartCount: 0,
             state: {
               running: {
-                startedAt: new Date().toISOString(),
+                startedAt: now,
               },
             },
           },
