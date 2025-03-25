@@ -18,8 +18,8 @@ spec:
       - name: k8s-mcp
         image: k8s-mcp:latest
         imagePullPolicy: IfNotPresent
-        command: ["node"]
-        args: ["-r", "dotenv/config", "dist/index.js"]
+        command: ["/bin/sh", "-c"]
+        args: ["SMITHERY=false node -r dotenv/config dist/index.js"]
         ports:
         - containerPort: 3000
         env:
@@ -27,8 +27,6 @@ spec:
           value: "3000"
         - name: NODE_ENV
           value: "production"
-        - name: SMITHERY
-          value: "false"
 ---
 apiVersion: v1
 kind: Service

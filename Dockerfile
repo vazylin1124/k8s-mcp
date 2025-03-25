@@ -32,12 +32,12 @@ RUN if [ ! -f .env ]; then \
     fi
 
 # 设置环境变量
-ENV PORT=3000
-ENV NODE_ENV=production
-ENV SMITHERY=false
+ENV PORT=3000 \
+    NODE_ENV=production \
+    SMITHERY=false
 
 # 暴露端口
 EXPOSE 3000
 
-# 直接使用 node 命令启动服务，避免 npm 的额外输出
-ENTRYPOINT ["node", "-r", "dotenv/config", "dist/index.js"] 
+# 使用 shell 形式的 ENTRYPOINT 来设置环境变量
+ENTRYPOINT SMITHERY=false node -r dotenv/config dist/index.js 
