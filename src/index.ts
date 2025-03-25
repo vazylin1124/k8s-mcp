@@ -8,15 +8,22 @@ import * as readline from 'readline';
 
 // 创建自定义日志函数，使用标准错误输出
 const log = {
-  info: (...args: any[]) => console.error('[INFO]', ...args),
-  warn: (...args: any[]) => console.error('[WARN]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args)
+  info: (...args: any[]) => process.stderr.write(`[INFO] ${args.join(' ')}\n`),
+  warn: (...args: any[]) => process.stderr.write(`[WARN] ${args.join(' ')}\n`),
+  error: (...args: any[]) => process.stderr.write(`[ERROR] ${args.join(' ')}\n`)
 };
-
-const mcpController = new MCPController();
 
 // 检查是否通过 Smithery 运行
 const isSmithery = process.env.SMITHERY === 'true';
+
+// 初始化 MCP 控制器
+let mcpController: MCPController;
+try {
+  mcpController = new MCPController();
+} catch (error: any) {
+  log.error(`Failed to initialize MCP controller: ${error.message}`);
+  process.exit(1);
+}
 
 if (isSmithery) {
   // 通过 stdio 进行 JSON-RPC 通信
@@ -30,10 +37,12 @@ if (isSmithery) {
     try {
       const request = JSON.parse(line);
       const response = await mcpController.handleWebSocketRequest(request);
-      console.log(JSON.stringify(response));
+      // 只输出 JSON-RPC 响应到标准输出
+      process.stdout.write(JSON.stringify(response) + '\n');
     } catch (error: any) {
-      log.error('Error handling stdio request:', error);
-      console.log(JSON.stringify({
+      log.error(`Error handling stdio request: ${error.message}`);
+      // 错误响应也是合法的 JSON-RPC 消息
+      process.stdout.write(JSON.stringify({
         jsonrpc: '2.0',
         error: {
           code: -32000,
@@ -41,20 +50,21 @@ if (isSmithery) {
           data: error.message
         },
         id: null
-      }));
+      }) + '\n');
     }
   });
 
-  // 错误处理
   rl.on('error', (error) => {
-    log.error('Readline error:', error);
+    log.error(`Readline error: ${error.message}`);
   });
 
-  // 关闭处理
   rl.on('close', () => {
-    log.info('Stdin closed, exiting...');
+    log.error('Stdin closed, exiting...');
     process.exit(0);
   });
+
+  // 初始化完成的日志输出到标准错误
+  log.info('MCP server initialized in Smithery mode');
 } else {
   // 正常的 HTTP/WebSocket 服务器模式
   const app = express();
@@ -266,11 +276,11 @@ if (isSmithery) {
 
         ws.on('message', async (message: string) => {
           try {
-            const request = JSON.parse(message);
+            const request = JSON.parse(message.toString());
             const response = await mcpController.handleWebSocketRequest(request);
             ws.send(JSON.stringify(response));
           } catch (error: any) {
-            log.error('WebSocket error:', error);
+            log.error(`WebSocket error: ${error.message}`);
             ws.send(JSON.stringify({
               jsonrpc: '2.0',
               error: {
@@ -284,7 +294,7 @@ if (isSmithery) {
         });
 
         ws.on('error', (error: Error) => {
-          log.error('WebSocket error:', error);
+          log.error(`WebSocket error: ${error.message}`);
         });
 
         ws.on('close', () => {
@@ -292,12 +302,12 @@ if (isSmithery) {
         });
       });
 
-      // 启动服务器
+      // 启动服务器，日志输出到标准错误
       server.listen(port, '0.0.0.0', () => {
-        log.info(`Server is running on port ${port}`);
+        log.error(`Server is running on port ${port}`);
       });
     } catch (error) {
-      log.error('Failed to start server:', error);
+      log.error(`Failed to start server: ${error.message}`);
       process.exit(1);
     }
   }
