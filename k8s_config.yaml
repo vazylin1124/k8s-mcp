@@ -1,18 +1,15 @@
 apiVersion: v1
 kind: Config
 clusters:
-- cluster:
+- name: local
+  cluster:
     server: http://localhost:8080
     insecure-skip-tls-verify: true
-  name: local-cluster
 contexts:
-- context:
-    cluster: local-cluster
-    user: local-user
-  name: local-context
-current-context: local-context
-users:
-- name: local-user
-  user:
-    username: admin
-    password: admin
+- name: local
+  context:
+    cluster: local
+    namespace: default
+current-context: local
+preferences: {}
+users: []

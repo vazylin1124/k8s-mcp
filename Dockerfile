@@ -2,10 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# 复制 package.json 和 package-lock.json
+# 复制 package.json 和配置文件
 COPY package*.json ./
 COPY tsconfig.json ./
-COPY .env ./
+COPY .env* ./
+
+# 如果 .env 文件不存在，则使用 .env.example
+RUN if [ ! -f .env ]; then \
+      if [ -f .env.example ]; then \
+        cp .env.example .env; \
+      else \
+        echo "PORT=8080\nNODE_ENV=production" > .env; \
+      fi \
+    fi
 
 # 安装依赖
 RUN npm install
