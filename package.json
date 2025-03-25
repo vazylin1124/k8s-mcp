@@ -6,11 +6,12 @@
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
     "build": "tsc",
-    "dev:http": "cross-env SMITHERY=false PORT=8080 ts-node -r dotenv/config src/index.ts",
-    "dev:smithery": "cross-env SMITHERY=true ts-node -r dotenv/config src/index.ts",
-    "start:http": "cross-env SMITHERY=false PORT=8080 node -r dotenv/config dist/index.js",
-    "start:smithery": "cross-env SMITHERY=true node -r dotenv/config dist/index.js",
-    "start": "npm run start:http"
+    "dev:http": "ts-node -r dotenv/config src/index.ts",
+    "dev:smithery": "SMITHERY=true ts-node -r dotenv/config src/index.ts",
+    "start:http": "node -r dotenv/config dist/index.js",
+    "start:smithery": "SMITHERY=true node -r dotenv/config dist/index.js",
+    "start": "node -r dotenv/config dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "kubernetes",

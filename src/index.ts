@@ -35,10 +35,10 @@ if (isSmithery) {
     try {
       // 解析并处理请求
       const request = JSON.parse(line);
-      log.info('Received request:', JSON.stringify(request));
+      log.debug('Received request:', JSON.stringify(request));
       
       const response = await mcpController.handleWebSocketRequest(request);
-      log.info('Sending response:', JSON.stringify(response));
+      log.debug('Sending response:', JSON.stringify(response));
       
       // 将响应写入标准输出
       process.stdout.write(JSON.stringify(response) + '\n');
@@ -64,7 +64,7 @@ if (isSmithery) {
 
   // 处理关闭
   rl.on('close', () => {
-    log.error('Stdin closed, exiting...');
+    log.info('Stdin closed, exiting...');
     process.exit(0);
   });
 
