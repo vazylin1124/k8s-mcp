@@ -1,7 +1,3 @@
-# Kubernetes config
-k8s_config.yaml
-connect.txt
-
 # Dependencies
 node_modules/
 
