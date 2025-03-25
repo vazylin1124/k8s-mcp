@@ -6,13 +6,7 @@ import { parse, stringify } from 'yaml';
 import { K8sConfigManager } from './k8s.config';
 import { MockK8sClient } from './k8s.mock';
 import { MCPConfig } from '../types/mcp.config';
-
-// 创建自定义日志函数，使用标准错误输出
-const log = {
-  info: (...args: any[]) => process.stderr.write(`[INFO] ${args.join(' ')}\n`),
-  warn: (...args: any[]) => process.stderr.write(`[WARN] ${args.join(' ')}\n`),
-  error: (...args: any[]) => process.stderr.write(`[ERROR] ${args.join(' ')}\n`)
-};
+import { log } from '../utils/logger';
 
 export class K8sClient {
   private static instance: K8sClient;
@@ -70,15 +64,19 @@ export class K8sClient {
         log.info('Successfully initialized Kubernetes client');
         log.info(`Using API server: ${config.apiServer}`);
         log.info(`Using namespace: ${config.namespace}`);
-      } catch (error) {
-        log.warn('Failed to initialize Kubernetes client, using mock client:', error);
+      } catch (error: any) {
+        log.warn(`Failed to initialize Kubernetes client, using mock client: ${error.message}`);
         this.useMock = true;
       } finally {
         // 清理临时文件
-        unlinkSync(tempConfigPath);
+        try {
+          unlinkSync(tempConfigPath);
+        } catch (error: any) {
+          log.warn(`Failed to clean up temporary config file: ${error.message}`);
+        }
       }
-    } catch (error) {
-      log.warn('Failed to initialize Kubernetes client, using mock client:', error);
+    } catch (error: any) {
+      log.warn(`Failed to initialize Kubernetes client, using mock client: ${error.message}`);
       this.useMock = true;
     }
     
@@ -105,8 +103,8 @@ export class K8sClient {
         const response = await this.k8sApi.listPodForAllNamespaces();
         return response.body;
       }
-    } catch (error) {
-      log.error('Error getting pods:', error);
+    } catch (error: any) {
+      log.error(`Error getting pods: ${error.message}`);
       return this.mockClient.getPods(namespace);
     }
   }
@@ -119,8 +117,8 @@ export class K8sClient {
     try {
       const response = await this.k8sApi.readNamespacedPod(name, namespace);
       return response.body;
-    } catch (error) {
-      log.error('Error describing pod:', error);
+    } catch (error: any) {
+      log.error(`Error describing pod: ${error.message}`);
       return this.mockClient.describePod(name, namespace);
     }
   }
@@ -133,8 +131,8 @@ export class K8sClient {
     try {
       const response = await this.k8sApi.readNamespacedPodLog(name, namespace, container);
       return response.body;
-    } catch (error) {
-      log.error('Error getting pod logs:', error);
+    } catch (error: any) {
+      log.error(`Error getting pod logs: ${error.message}`);
       return this.mockClient.getPodLogs(name, namespace, container);
     }
   }
