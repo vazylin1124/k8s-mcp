@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { MCPRequest, MCPResponse, MCPInitializeParams, MCPInitializeResult, MCP_TOOLS } from './mcp.types';
 import { K8sClient } from './k8s.client';
 
-// 创建自定义日志函数
+// 创建自定义日志函数，使用标准错误输出
 const log = {
   info: (...args: any[]) => console.error('[INFO]', ...args),
   warn: (...args: any[]) => console.error('[WARN]', ...args),
@@ -62,48 +62,83 @@ export class MCPController {
     ];
   }
 
-  private createResponse(request: MCPRequest, result?: any, error?: { code: number; message: string; data?: any }): MCPResponse {
-    return {
-      jsonrpc: '2.0',
-      id: request.id,
-      result,
-      error
-    };
+  public async handleWebSocketRequest(request: JsonRpcRequest): Promise<JsonRpcResponse> {
+    try {
+      // 验证 JSON-RPC 请求
+      if (!this.isValidJsonRpcRequest(request)) {
+        return {
+          jsonrpc: '2.0',
+          error: {
+            code: -32600,
+            message: 'Invalid Request'
+          },
+          id: null
+        };
+      }
+
+      // 处理方法调用
+      let result;
+      switch (request.method) {
+        case 'initialize':
+          result = await this.initialize(request.params);
+          break;
+        case 'get_tools':
+        case 'tools/list':
+          result = this.tools;
+          break;
+        case 'get_pod_status':
+          result = await this.k8sClient.getPods(request.params?.namespace);
+          break;
+        case 'describe_pod':
+          result = await this.k8sClient.describePod(
+            request.params.pod_name,
+            request.params.namespace
+          );
+          break;
+        case 'get_pod_logs':
+          result = await this.k8sClient.getPodLogs(
+            request.params.pod_name,
+            request.params.namespace,
+            request.params.container
+          );
+          break;
+        default:
+          return {
+            jsonrpc: '2.0',
+            error: {
+              code: -32601,
+              message: 'Method not found'
+            },
+            id: request.id
+          };
+      }
+
+      return {
+        jsonrpc: '2.0',
+        result,
+        id: request.id
+      };
+    } catch (error: any) {
+      log.error('Error handling WebSocket request:', error);
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Internal error',
+          data: error.message
+        },
+        id: request.id
+      };
+    }
   }
 
   public async handleRequest(req: Request, res: Response): Promise<void> {
     try {
       const jsonRpcRequest = req.body as JsonRpcRequest;
-
-      // 验证 JSON-RPC 请求
-      if (!this.isValidJsonRpcRequest(jsonRpcRequest)) {
-        this.sendJsonRpcError(res, -32600, 'Invalid Request', null);
-        return;
-      }
-
-      // 处理方法调用
-      switch (jsonRpcRequest.method) {
-        case 'initialize':
-          await this.handleInitialize(jsonRpcRequest, res);
-          break;
-        case 'get_tools':
-        case 'tools/list':
-          await this.handleGetTools(jsonRpcRequest, res);
-          break;
-        case 'get_pod_status':
-          await this.handleGetPodStatus(jsonRpcRequest, res);
-          break;
-        case 'describe_pod':
-          await this.handleDescribePod(jsonRpcRequest, res);
-          break;
-        case 'get_pod_logs':
-          await this.handleGetPodLogs(jsonRpcRequest, res);
-          break;
-        default:
-          this.sendJsonRpcError(res, -32601, 'Method not found', jsonRpcRequest.id);
-      }
+      const response = await this.handleWebSocketRequest(jsonRpcRequest);
+      res.json(response);
     } catch (error: any) {
-      log.error('Error handling MCP request:', error);
+      log.error('Error handling HTTP request:', error);
       this.sendJsonRpcError(res, -32000, 'Internal error', null, error.message);
     }
   }
@@ -117,37 +152,6 @@ export class MCPController {
     );
   }
 
-  private async handleInitialize(request: JsonRpcRequest, res: Response): Promise<void> {
-    const result = await this.initialize(request.params);
-    this.sendJsonRpcResponse(res, result, request.id);
-  }
-
-  private async handleGetTools(request: JsonRpcRequest, res: Response): Promise<void> {
-    this.sendJsonRpcResponse(res, this.tools, request.id);
-  }
-
-  private async handleGetPodStatus(request: JsonRpcRequest, res: Response): Promise<void> {
-    const result = await this.k8sClient.getPods(request.params?.namespace);
-    this.sendJsonRpcResponse(res, result, request.id);
-  }
-
-  private async handleDescribePod(request: JsonRpcRequest, res: Response): Promise<void> {
-    const result = await this.k8sClient.describePod(
-      request.params.pod_name,
-      request.params.namespace
-    );
-    this.sendJsonRpcResponse(res, result, request.id);
-  }
-
-  private async handleGetPodLogs(request: JsonRpcRequest, res: Response): Promise<void> {
-    const result = await this.k8sClient.getPodLogs(
-      request.params.pod_name,
-      request.params.namespace,
-      request.params.container
-    );
-    this.sendJsonRpcResponse(res, result, request.id);
-  }
-
   private async initialize(params: MCPInitializeParams): Promise<MCPInitializeResult> {
     return {
       capabilities: {
@@ -155,15 +159,6 @@ export class MCPController {
         workspaceSupport: false
       }
     };
-  }
-
-  private sendJsonRpcResponse(res: Response, result: any, id: string | number | null): void {
-    const response: JsonRpcResponse = {
-      jsonrpc: '2.0',
-      result,
-      id
-    };
-    res.json(response);
   }
 
   private sendJsonRpcError(

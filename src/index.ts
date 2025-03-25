@@ -2,7 +2,8 @@ import express, { Request, Response } from 'express';
 import { K8sClient } from './k8s.client';
 import { MCPController } from './mcp.controller';
 import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
-import { createServer } from 'net';
+import { createServer } from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
 
 // 创建自定义日志函数，使用标准错误输出
 const log = {
@@ -204,32 +205,51 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
   }
 });
 
-// MCP JSON-RPC 路由
+// MCP JSON-RPC HTTP 路由
 app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
-
-// 在启动服务器之前检查端口是否被占用
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = createServer()
-      .listen(port, () => {
-        server.close();
-        resolve(true);
-      })
-      .on('error', () => {
-        resolve(false);
-      });
-  });
-}
 
 async function startServer() {
   try {
-    const available = await isPortAvailable(port);
-    if (!available) {
-      log.error(`Port ${port} is already in use. Please use a different port or stop the existing process.`);
-      process.exit(1);
-    }
+    // 创建 HTTP 服务器
+    const server = createServer(app);
 
-    app.listen(port, '0.0.0.0', () => {
+    // 创建 WebSocket 服务器
+    const wss = new WebSocketServer({ server, path: '/mcp' });
+
+    // 处理 WebSocket 连接
+    wss.on('connection', (ws: WebSocket) => {
+      log.info('WebSocket client connected');
+
+      ws.on('message', async (message: string) => {
+        try {
+          const request = JSON.parse(message);
+          const response = await mcpController.handleWebSocketRequest(request);
+          ws.send(JSON.stringify(response));
+        } catch (error: any) {
+          log.error('WebSocket error:', error);
+          ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Internal error',
+              data: error.message
+            },
+            id: null
+          }));
+        }
+      });
+
+      ws.on('error', (error: Error) => {
+        log.error('WebSocket error:', error);
+      });
+
+      ws.on('close', () => {
+        log.info('WebSocket client disconnected');
+      });
+    });
+
+    // 启动服务器
+    server.listen(port, '0.0.0.0', () => {
       log.info(`Server is running on port ${port}`);
     });
   } catch (error) {
