@@ -19,7 +19,7 @@ RUN npm run build
 RUN npm prune --production
 
 # 暴露端口
-EXPOSE 3000
+EXPOSE 8080
 
 # 启动服务
 CMD ["npm", "start"] 
