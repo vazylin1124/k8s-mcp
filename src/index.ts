@@ -54,7 +54,7 @@ if (isSmithery) {
     }
   });
 
-  rl.on('error', (error) => {
+  rl.on('error', (error: Error) => {
     log.error(`Readline error: ${error.message}`);
   });
 
@@ -306,8 +306,10 @@ if (isSmithery) {
       server.listen(port, '0.0.0.0', () => {
         log.error(`Server is running on port ${port}`);
       });
-    } catch (error) {
-      log.error(`Failed to start server: ${error.message}`);
+    } catch (error: unknown) {
+      // 对 unknown 类型的错误进行类型检查
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error(`Failed to start server: ${errorMessage}`);
       process.exit(1);
     }
   }
