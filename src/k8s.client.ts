@@ -48,11 +48,14 @@ export class K8sClient {
   public async getPods(namespace?: string): Promise<k8s.V1PodList> {
     try {
       if (namespace) {
-        const response = await this.k8sApi.listNamespacedPod(namespace) as any;
-        return response.body;
+        const opts = {
+          namespace,
+        } as unknown as k8s.CoreV1ApiListNamespacedPodRequest;
+        const response = await this.k8sApi.listNamespacedPod(opts);
+        return response as unknown as k8s.V1PodList;
       } else {
-        const response = await this.k8sApi.listPodForAllNamespaces() as any;
-        return response.body;
+        const response = await this.k8sApi.listPodForAllNamespaces();
+        return response as unknown as k8s.V1PodList;
       }
     } catch (error) {
       console.error('Error getting pods:', error);
@@ -62,8 +65,12 @@ export class K8sClient {
 
   public async describePod(name: string, namespace: string = 'default'): Promise<k8s.V1Pod> {
     try {
-      const response = await this.k8sApi.readNamespacedPod(name, namespace) as any;
-      return response.body;
+      const opts = {
+        name,
+        namespace,
+      } as unknown as k8s.CoreV1ApiReadNamespacedPodRequest;
+      const response = await this.k8sApi.readNamespacedPod(opts);
+      return response as unknown as k8s.V1Pod;
     } catch (error) {
       console.error('Error describing pod:', error);
       throw error;
@@ -72,8 +79,13 @@ export class K8sClient {
 
   public async getPodLogs(name: string, namespace: string = 'default', container?: string): Promise<string> {
     try {
-      const response = await this.k8sApi.readNamespacedPodLog(name, namespace) as any;
-      return response.body;
+      const opts = {
+        name,
+        namespace,
+        container,
+      } as unknown as k8s.CoreV1ApiReadNamespacedPodLogRequest;
+      const response = await this.k8sApi.readNamespacedPodLog(opts);
+      return response;
     } catch (error) {
       console.error('Error getting pod logs:', error);
       throw error;
