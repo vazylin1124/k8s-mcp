@@ -1,0 +1,25 @@
+{
+  "name": "k8s-mcp",
+  "version": "1.0.0",
+  "description": "Kubernetes Management Control Panel",
+  "type": "service",
+  "protocol": "json-rpc",
+  "endpoint": "/mcp",
+  "methods": {
+    "initialize": {
+      "description": "初始化 MCP 服务"
+    },
+    "tools/list": {
+      "description": "获取可用工具列表"
+    },
+    "getPodStatus": {
+      "description": "获取 Pod 状态信息"
+    },
+    "describePod": {
+      "description": "获取 Pod 详细信息"
+    },
+    "getPodLogs": {
+      "description": "获取 Pod 日志"
+    }
+  }
+} 

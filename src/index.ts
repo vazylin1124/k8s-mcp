@@ -1,9 +1,11 @@
 import express, { Request, Response } from 'express';
 import { K8sClient } from './k8s.client';
+import { MCPController } from './mcp.controller';
 
 const app = express();
 const port = process.env.PORT || 3000;
 const k8sClient = K8sClient.getInstance();
+const mcpController = new MCPController();
 
 // 中间件
 app.use(express.json());
@@ -153,6 +155,9 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
     });
   }
 });
+
+// MCP JSON-RPC 路由
+app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 
 app.listen(port, () => {
   console.log(`K8s MCP Service is running on port ${port}`);
