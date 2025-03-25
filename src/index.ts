@@ -370,7 +370,7 @@ if (isSmithery) {
                 log.info(`Server is running on http://${host}:${address.port}`);
                 log.info('Available endpoints:');
                 log.info('- JSON-RPC: POST /mcp');
-                log.info('- WebSocket: ws://localhost:${port}/mcp');
+                log.info(`- WebSocket: ws://${host}:${address.port}/mcp`);
                 log.info('- K8s API: POST /api/k8s/pods/*');
               }
               resolve();
