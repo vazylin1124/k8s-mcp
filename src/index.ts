@@ -11,6 +11,14 @@ import { log } from './utils/logger';
 // 检查是否通过 Smithery 运行
 const isSmithery = process.env.SMITHERY === 'true';
 
+// 在 Smithery 模式下禁用非必要的日志
+if (isSmithery) {
+  log.info = () => {};
+  log.warn = () => {};
+  log.error = (message: string) => process.stderr.write(`{"jsonrpc":"2.0","error":{"code":-32000,"message":"Internal error","data":"${message}"},"id":null}\n`);
+  log.debug = () => {};
+}
+
 // 初始化 MCP 控制器
 let mcpController: MCPController;
 try {
@@ -22,8 +30,6 @@ try {
 
 if (isSmithery) {
   // Smithery 模式：通过 stdio 进行 JSON-RPC 通信
-  log.info('Starting server in Smithery mode');
-  
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -35,16 +41,11 @@ if (isSmithery) {
     try {
       // 解析并处理请求
       const request = JSON.parse(line);
-      log.debug('Received request:', JSON.stringify(request));
-      
       const response = await mcpController.handleWebSocketRequest(request);
-      log.debug('Sending response:', JSON.stringify(response));
-      
       // 将响应写入标准输出
       process.stdout.write(JSON.stringify(response) + '\n');
     } catch (error: any) {
       // 错误也需要以 JSON-RPC 格式返回
-      log.error(`Error handling request: ${error.message}`);
       process.stdout.write(JSON.stringify({
         jsonrpc: '2.0',
         error: {
@@ -59,17 +60,21 @@ if (isSmithery) {
 
   // 处理错误
   rl.on('error', (error: Error) => {
-    log.error(`Readline error: ${error.message}`);
+    process.stderr.write(JSON.stringify({
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+        data: error.message
+      },
+      id: null
+    }) + '\n');
   });
 
   // 处理关闭
   rl.on('close', () => {
-    log.info('Stdin closed, exiting...');
     process.exit(0);
   });
-
-  // 初始化完成的日志输出到标准错误
-  log.info('MCP server initialized in Smithery mode');
 } else {
   // HTTP/WebSocket 模式
   log.info('Starting server in HTTP mode');
