@@ -36,6 +36,11 @@ export interface MCPInitializeParams {
 }
 
 export interface MCPInitializeResult {
+  protocolVersion: string;
+  serverInfo: {
+    name: string;
+    version: string;
+  };
   capabilities: {
     toolsSupport: boolean;
     workspaceSupport: boolean;

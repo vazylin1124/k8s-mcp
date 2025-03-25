@@ -154,6 +154,11 @@ export class MCPController {
 
   private async initialize(params: MCPInitializeParams): Promise<MCPInitializeResult> {
     return {
+      protocolVersion: '2.0',
+      serverInfo: {
+        name: 'k8s-mcp',
+        version: '1.0.0'
+      },
       capabilities: {
         toolsSupport: true,
         workspaceSupport: false
