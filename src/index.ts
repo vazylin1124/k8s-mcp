@@ -27,6 +27,8 @@ try {
 
 if (isSmithery) {
   // Smithery 模式：通过 stdio 进行 JSON-RPC 通信
+  log.info('Starting server in Smithery mode');
+  
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -38,7 +40,10 @@ if (isSmithery) {
     try {
       // 解析并处理请求
       const request = JSON.parse(line);
+      log.info('Received request:', JSON.stringify(request));
+      
       const response = await mcpController.handleWebSocketRequest(request);
+      log.info('Sending response:', JSON.stringify(response));
       
       // 将响应写入标准输出
       process.stdout.write(JSON.stringify(response) + '\n');
@@ -72,8 +77,11 @@ if (isSmithery) {
   log.info('MCP server initialized in Smithery mode');
 } else {
   // HTTP/WebSocket 模式
+  log.info('Starting server in HTTP mode');
+  
   const app = express();
-  const port = parseInt(process.env.PORT || '3000', 10);
+  let port = parseInt(process.env.PORT || '3000', 10);
+  const maxRetries = 10;
   const k8sClient = K8sClient.getInstance();
 
   // 中间件
@@ -175,7 +183,7 @@ if (isSmithery) {
             const podDetails = await k8sClient.describePod(pod.podName, pod.namespace);
             if (podDetails.status?.conditions) {
               const events = podDetails.status.conditions
-                .map((condition: V1PodCondition) => {
+                .map(condition => {
                   const time = condition.lastTransitionTime || '';
                   const type = condition.type || '';
                   const status = condition.status || '';
@@ -265,7 +273,25 @@ if (isSmithery) {
   });
 
   // MCP JSON-RPC HTTP 路由
-  app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
+  app.post('/mcp', async (req, res) => {
+    try {
+      log.info('Received HTTP request:', JSON.stringify(req.body));
+      const response = await mcpController.handleWebSocketRequest(req.body);
+      log.info('Sending HTTP response:', JSON.stringify(response));
+      res.json(response);
+    } catch (error: any) {
+      log.error(`Error handling HTTP request: ${error.message}`);
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Internal error',
+          data: error.message
+        },
+        id: null
+      });
+    }
+  });
 
   // 创建 HTTP 服务器
   const server = createServer(app);
@@ -280,7 +306,11 @@ if (isSmithery) {
     ws.on('message', async (message: string) => {
       try {
         const request = JSON.parse(message.toString());
+        log.info('Received WebSocket request:', JSON.stringify(request));
+        
         const response = await mcpController.handleWebSocketRequest(request);
+        log.info('Sending WebSocket response:', JSON.stringify(response));
+        
         ws.send(JSON.stringify(response));
       } catch (error: any) {
         log.error(`WebSocket error: ${error.message}`);
@@ -306,13 +336,31 @@ if (isSmithery) {
   });
 
   // 启动服务器
-  try {
-    server.listen(port, '0.0.0.0', () => {
-      log.info(`Server is running on port ${port}`);
-    });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.error(`Failed to start server: ${errorMessage}`);
-    process.exit(1);
+  async function startServer(retryCount = 0): Promise<void> {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.listen(port, '0.0.0.0')
+          .once('listening', () => {
+            log.info(`Server is running on port ${port}`);
+            resolve();
+          })
+          .once('error', (error: any) => {
+            if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
+              log.warn(`Port ${port} is in use, trying port ${port + 1}`);
+              server.close();
+              port++;
+              startServer(retryCount + 1).then(resolve).catch(reject);
+            } else {
+              reject(error);
+            }
+          });
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error(`Failed to start server: ${errorMessage}`);
+      process.exit(1);
+    }
   }
+
+  startServer();
 }
