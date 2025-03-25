@@ -9,25 +9,8 @@ export class K8sClient {
   private configPath: string;
 
   private constructor() {
-    // 尝试多个可能的配置文件位置
-    const possiblePaths = [
-      process.env.KUBECONFIG,
-      path.join(process.env.HOME || '', '.kube', 'config'),
-      '/etc/kubernetes/admin.conf',
-      path.join(process.cwd(), 'kubeconfig')
-    ].filter(Boolean);
-
-    // 找到第一个存在的配置文件
-    const existingPath = possiblePaths.find(p => p && fs.existsSync(p));
-    
-    if (!existingPath) {
-      throw new Error(
-        '找不到 Kubernetes 配置文件。请确保以下位置之一存在配置文件：\n' +
-        possiblePaths.join('\n')
-      );
-    }
-
-    this.configPath = existingPath;
+    // 设置配置文件路径为当前目录下的 k8s_config.yaml
+    this.configPath = path.join(process.cwd(), 'k8s_config.yaml');
     this.initializeClient();
   }
 
@@ -65,12 +48,11 @@ export class K8sClient {
   public async getPods(namespace?: string): Promise<k8s.V1PodList> {
     try {
       if (namespace) {
-        const opts = { namespace } as k8s.CoreV1ApiListNamespacedPodRequest;
-        const response = await this.k8sApi.listNamespacedPod(opts);
-        return (response as any).body;
+        const response = await this.k8sApi.listNamespacedPod(namespace) as any;
+        return response.body;
       } else {
-        const response = await this.k8sApi.listPodForAllNamespaces();
-        return (response as any).body;
+        const response = await this.k8sApi.listPodForAllNamespaces() as any;
+        return response.body;
       }
     } catch (error) {
       console.error('Error getting pods:', error);
@@ -80,9 +62,8 @@ export class K8sClient {
 
   public async describePod(name: string, namespace: string = 'default'): Promise<k8s.V1Pod> {
     try {
-      const opts = { name, namespace } as k8s.CoreV1ApiReadNamespacedPodRequest;
-      const response = await this.k8sApi.readNamespacedPod(opts);
-      return (response as any).body;
+      const response = await this.k8sApi.readNamespacedPod(name, namespace) as any;
+      return response.body;
     } catch (error) {
       console.error('Error describing pod:', error);
       throw error;
@@ -91,12 +72,11 @@ export class K8sClient {
 
   public async getPodLogs(name: string, namespace: string = 'default', container?: string): Promise<string> {
     try {
-      const opts = { name, namespace, container } as k8s.CoreV1ApiReadNamespacedPodLogRequest;
-      const response = await this.k8sApi.readNamespacedPodLog(opts);
-      return (response as any).body;
+      const response = await this.k8sApi.readNamespacedPodLog(name, namespace) as any;
+      return response.body;
     } catch (error) {
       console.error('Error getting pod logs:', error);
       throw error;
     }
   }
-} 
+}
