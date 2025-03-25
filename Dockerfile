@@ -36,4 +36,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # 启动服务
-CMD ["npm", "start"] 
+CMD ["node", "-r", "dotenv/config", "dist/index.js"] 

@@ -4,7 +4,7 @@ import { MCPController } from './mcp.controller';
 import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
 import { createServer } from 'net';
 
-// 创建自定义日志函数
+// 创建自定义日志函数，使用标准错误输出
 const log = {
   info: (...args: any[]) => console.error('[INFO]', ...args),
   warn: (...args: any[]) => console.error('[WARN]', ...args),
@@ -12,7 +12,7 @@ const log = {
 };
 
 const app = express();
-const port = parseInt(process.env.PORT || '8080', 10);
+const port = parseInt(process.env.PORT || '3000', 10);
 const k8sClient = K8sClient.getInstance();
 const mcpController = new MCPController();
 
@@ -207,8 +207,6 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
 // MCP JSON-RPC 路由
 app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 
-const host = '0.0.0.0';
-
 // 在启动服务器之前检查端口是否被占用
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -231,8 +229,8 @@ async function startServer() {
       process.exit(1);
     }
 
-    app.listen(port, host, () => {
-      log.info(`K8s MCP Service is running on http://${host}:${port}`);
+    app.listen(port, '0.0.0.0', () => {
+      log.info(`Server is running on port ${port}`);
     });
   } catch (error) {
     log.error('Failed to start server:', error);
