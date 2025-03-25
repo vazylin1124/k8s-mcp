@@ -23,6 +23,7 @@ if (isSmithery) {
 let mcpController: MCPController;
 try {
   mcpController = new MCPController();
+  log.info('MCP controller initialized successfully');
 } catch (error: any) {
   log.error(`Failed to initialize MCP controller: ${error.message}`);
   process.exit(1);
@@ -82,9 +83,19 @@ if (isSmithery) {
   log.info('Starting server in HTTP mode');
   
   const app = express();
-  let port = parseInt(process.env.PORT || '3000', 10);
+  const port = parseInt(process.env.PORT || '3000', 10);
+  const host = process.env.HOST || '0.0.0.0';
   const maxRetries = 10;
-  const k8sClient = K8sClient.getInstance();
+  
+  // 初始化 K8s 客户端
+  let k8sClient: K8sClient;
+  try {
+    k8sClient = K8sClient.getInstance();
+    log.info('K8s client initialized successfully');
+  } catch (error: any) {
+    log.error(`Failed to initialize K8s client: ${error.message}`);
+    process.exit(1);
+  }
 
   // 中间件
   app.use(express.json());
@@ -350,53 +361,43 @@ if (isSmithery) {
     try {
       await new Promise<void>((resolve, reject) => {
         const tryListen = () => {
-          log.info(`Attempting to start server on port ${port}...`);
+          log.info(`Attempting to start server on ${host}:${port}...`);
           
-          // 先尝试关闭现有的服务器
-          if (server.listening) {
-            log.info('Server is already listening, closing first...');
-            server.close(() => {
-              log.info('Existing server closed');
-              startListening();
-            });
-          } else {
-            startListening();
-          }
-        };
-
-        const startListening = () => {
-          server.listen(port, '0.0.0.0')
+          server.listen(port, host)
             .once('listening', () => {
               const address = server.address();
               if (address && typeof address === 'object') {
-                log.info(`Server is running on http://0.0.0.0:${address.port}`);
-              } else {
-                log.info(`Server is running on port ${port}`);
+                log.info(`Server is running on http://${host}:${address.port}`);
+                log.info('Available endpoints:');
+                log.info('- JSON-RPC: POST /mcp');
+                log.info('- WebSocket: ws://localhost:${port}/mcp');
+                log.info('- K8s API: POST /api/k8s/pods/*');
               }
               resolve();
             })
             .once('error', (error: any) => {
-              if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
-                log.warn(`Port ${port} is in use, trying port ${port + 1}`);
-                port++;
-                setTimeout(tryListen, 1000); // 添加延迟
+              if (error.code === 'EADDRINUSE') {
+                log.error(`Port ${port} is already in use`);
+                if (retryCount < maxRetries) {
+                  log.info(`Retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`);
+                  setTimeout(() => startServer(retryCount + 1), 1000);
+                } else {
+                  log.error(`Maximum retry attempts (${maxRetries}) reached`);
+                  process.exit(1);
+                }
               } else {
+                log.error(`Failed to start server: ${error.message}`);
                 reject(error);
               }
             });
         };
-        
+
         tryListen();
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Failed to start server: ${errorMessage}`);
-      if (retryCount >= maxRetries) {
-        log.error(`Maximum retry attempts (${maxRetries}) reached. Exiting...`);
-        process.exit(1);
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return startServer(retryCount + 1);
+      process.exit(1);
     }
   }
 
@@ -418,7 +419,6 @@ if (isSmithery) {
   });
 
   // 启动服务器
-  log.info('Starting server...');
   startServer().catch(error => {
     log.error('Failed to start server:', error);
     process.exit(1);
