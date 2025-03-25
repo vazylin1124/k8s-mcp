@@ -3,7 +3,7 @@ module.exports = {
   service: {
     name: 'k8s-mcp',
     version: '1.0.0',
-    protocol: 'MCP/2.0',
+    protocol: new Date().toISOString().split('T')[0],
     port: 3000,
     host: '0.0.0.0'
   },

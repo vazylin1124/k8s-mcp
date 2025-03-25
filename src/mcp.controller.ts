@@ -153,8 +153,12 @@ export class MCPController {
   }
 
   private async initialize(params: MCPInitializeParams): Promise<MCPInitializeResult> {
+    // 使用当前日期作为协议版本
+    const today = new Date();
+    const protocolVersion = today.toISOString().split('T')[0];
+
     return {
-      protocolVersion: 'MCP/2.0',
+      protocolVersion,
       serverInfo: {
         name: 'k8s-mcp',
         version: '1.0.0'

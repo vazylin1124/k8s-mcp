@@ -37,8 +37,8 @@ export interface MCPInitializeParams {
 
 export interface MCPInitializeResult {
   /**
-   * Protocol version in the format "MCP/x.y"
-   * Example: "MCP/2.0"
+   * Protocol version in ISO date format (YYYY-MM-DD)
+   * Example: '2024-11-05'
    */
   protocolVersion: string;
   serverInfo: {
