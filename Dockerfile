@@ -33,6 +33,7 @@ RUN if [ ! -f .env ]; then \
 # 设置环境变量
 ENV PORT=3000
 ENV NODE_ENV=production
+ENV SMITHERY=true
 
 # 暴露端口
 EXPOSE 3000
