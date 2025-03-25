@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as yaml from 'yaml';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { parse, stringify } from 'yaml';
 
 // 创建自定义日志函数，使用标准错误输出
 const log = {
@@ -35,12 +35,12 @@ export class K8sConfigManager {
     } else {
       try {
         // 尝试从配置文件加载
-        const configPath = path.join(process.cwd(), 'k8s_config.yaml');
+        const configPath = join(process.cwd(), 'k8s_config.yaml');
         
         // 如果配置文件不存在，创建默认配置文件
-        if (!fs.existsSync(configPath)) {
+        if (!existsSync(configPath)) {
           log.warn('k8s_config.yaml not found, creating default configuration file');
-          fs.writeFileSync(configPath, yaml.stringify({
+          writeFileSync(configPath, stringify({
             apiVersion: 'v1',
             kind: 'Config',
             clusters: [{
@@ -62,7 +62,7 @@ export class K8sConfigManager {
           }));
         }
 
-        const configData = yaml.parse(fs.readFileSync(configPath, 'utf8'));
+        const configData = parse(readFileSync(configPath, 'utf8'));
         
         // 验证配置
         if (!configData?.clusters?.[0]?.cluster?.server) {

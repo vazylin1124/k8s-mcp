@@ -1,18 +1,17 @@
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { homedir, tmpdir } from 'os';
 import { parse, stringify } from 'yaml';
 import { K8sConfigManager } from './k8s.config.js';
 import { MockK8sClient } from './k8s.mock.js';
-import { tmpdir } from 'os';
 import { MCPConfig } from './types/mcp.config';
-import * as yaml from 'yaml';
 
-// 创建自定义日志函数
+// 创建自定义日志函数，使用标准错误输出
 const log = {
-  info: (...args: any[]) => console.error('[INFO]', ...args),
-  warn: (...args: any[]) => console.error('[WARN]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args)
+  info: (...args: any[]) => process.stderr.write(`[INFO] ${args.join(' ')}\n`),
+  warn: (...args: any[]) => process.stderr.write(`[WARN] ${args.join(' ')}\n`),
+  error: (...args: any[]) => process.stderr.write(`[ERROR] ${args.join(' ')}\n`)
 };
 
 export class K8sClient {
@@ -24,7 +23,7 @@ export class K8sClient {
   private useMock: boolean = false;
 
   private constructor() {
-    this.configPath = join(os.homedir(), '.cursor', 'mcp.json');
+    this.configPath = join(homedir(), '.cursor', 'mcp.json');
     this.mockClient = MockK8sClient.getInstance();
   }
 
@@ -61,8 +60,8 @@ export class K8sClient {
         users: []
       };
 
-      const tempConfigPath = join(os.tmpdir(), 'k8s-mcp-config.yaml');
-      fs.writeFileSync(tempConfigPath, yaml.stringify(tempConfig));
+      const tempConfigPath = join(tmpdir(), 'k8s-mcp-config.yaml');
+      writeFileSync(tempConfigPath, stringify(tempConfig));
       
       try {
         kc.loadFromFile(tempConfigPath);
@@ -76,7 +75,7 @@ export class K8sClient {
         this.useMock = true;
       } finally {
         // 清理临时文件
-        fs.unlinkSync(tempConfigPath);
+        unlinkSync(tempConfigPath);
       }
     } catch (error) {
       log.warn('Failed to initialize Kubernetes client, using mock client:', error);

@@ -340,21 +340,25 @@ if (isSmithery) {
   async function startServer(retryCount = 0): Promise<void> {
     try {
       await new Promise<void>((resolve, reject) => {
-        server.listen(port, '0.0.0.0')
-          .once('listening', () => {
-            log.info(`Server is running on port ${port}`);
-            resolve();
-          })
-          .once('error', (error: any) => {
-            if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
-              log.warn(`Port ${port} is in use, trying port ${port + 1}`);
-              server.close();
-              port++;
-              startServer(retryCount + 1).then(resolve).catch(reject);
-            } else {
-              reject(error);
-            }
-          });
+        const tryListen = () => {
+          server.listen(port, '0.0.0.0')
+            .once('listening', () => {
+              log.info(`Server is running on port ${port}`);
+              resolve();
+            })
+            .once('error', (error: any) => {
+              if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
+                log.warn(`Port ${port} is in use, trying port ${port + 1}`);
+                server.close();
+                port++;
+                tryListen();
+              } else {
+                reject(error);
+              }
+            });
+        };
+        
+        tryListen();
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -362,6 +366,23 @@ if (isSmithery) {
       process.exit(1);
     }
   }
+
+  // 优雅关闭
+  process.on('SIGINT', () => {
+    log.info('Received SIGINT signal, shutting down gracefully...');
+    server.close(() => {
+      log.info('Server closed');
+      process.exit(0);
+    });
+  });
+
+  process.on('SIGTERM', () => {
+    log.info('Received SIGTERM signal, shutting down gracefully...');
+    server.close(() => {
+      log.info('Server closed');
+      process.exit(0);
+    });
+  });
 
   startServer();
 }
