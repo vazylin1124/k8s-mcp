@@ -1,11 +1,31 @@
-import * as https from 'https';
-import { K8sConfigManager } from './k8s.config';
+import * as k8s from '@kubernetes/client-node';
+import * as fs from 'fs';
+import * as YAML from 'yaml';
 
 export class K8sClient {
   private static instance: K8sClient;
-  private config = K8sConfigManager.getInstance().getConfig();
+  private k8sApi: k8s.CoreV1Api;
+  private configPath: string;
 
-  private constructor() {}
+  private constructor() {
+    this.configPath = process.env.KUBECONFIG || `${process.env.HOME}/.kube/config`;
+    this.initializeClient();
+  }
+
+  private initializeClient() {
+    try {
+      const configContent = fs.readFileSync(this.configPath, 'utf-8');
+      const kubeConfig = YAML.parse(configContent);
+
+      const kc = new k8s.KubeConfig();
+      kc.loadFromFile(this.configPath);
+      
+      this.k8sApi = kc.makeApiClient(k8s.CoreV1Api);
+    } catch (error) {
+      console.error('Error initializing K8s client:', error);
+      throw error;
+    }
+  }
 
   public static getInstance(): K8sClient {
     if (!K8sClient.instance) {
@@ -14,69 +34,48 @@ export class K8sClient {
     return K8sClient.instance;
   }
 
-  private createHttpsAgent(): https.Agent {
-    return new https.Agent({
-      cert: this.config.clientCertificate,
-      key: this.config.clientKey,
-      ca: this.config.certificateAuthority,
-      rejectUnauthorized: false // 在生产环境中应该设置为 true
-    });
+  public async getPods(namespace?: string) {
+    try {
+      const response = namespace 
+        ? await this.k8sApi.listNamespacedPod(namespace)
+        : await this.k8sApi.listPodForAllNamespaces();
+      return response.body;
+    } catch (error) {
+      console.error('Error getting pods:', error);
+      throw error;
+    }
   }
 
-  public async request(path: string, namespace?: string): Promise<any> {
-    const agent = this.createHttpsAgent();
-    const url = namespace 
-      ? `${this.config.apiServer}/api/v1/namespaces/${namespace}${path}`
-      : `${this.config.apiServer}/api/v1${path}`;
-
-    return new Promise((resolve, reject) => {
-      const req = https.get(url, { agent }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (error) {
-            reject(error);
-          }
-        });
-      });
-
-      req.on('error', (error) => {
-        reject(error);
-      });
-
-      req.end();
-    });
+  public async describePod(name: string, namespace: string = 'default') {
+    try {
+      const response = await this.k8sApi.readNamespacedPod(name, namespace);
+      return response.body;
+    } catch (error) {
+      console.error('Error describing pod:', error);
+      throw error;
+    }
   }
 
-  public async getPods(namespace?: string): Promise<any> {
-    const path = '/pods';
-    return this.request(path, namespace);
-  }
-
-  public async getPodLogs(podName: string, namespace: string = 'default', container?: string): Promise<string> {
-    const path = `/namespaces/${namespace}/pods/${podName}/log${container ? `?container=${container}` : ''}`;
-    const url = `${this.config.apiServer}/api/v1${path}`;
-    const agent = this.createHttpsAgent();
-
-    return new Promise((resolve, reject) => {
-      const req = https.get(url, { agent }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => resolve(data));
-      });
-
-      req.on('error', (error) => {
-        reject(error);
-      });
-
-      req.end();
-    });
-  }
-
-  public async describePod(podName: string, namespace: string = 'default'): Promise<any> {
-    const path = `/pods/${podName}`;
-    return this.request(path, namespace);
+  public async getPodLogs(name: string, namespace: string = 'default', container?: string) {
+    try {
+      const response = await this.k8sApi.readNamespacedPodLog(
+        name,
+        namespace,
+        container,
+        false,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined
+      );
+      return response.body;
+    } catch (error) {
+      console.error('Error getting pod logs:', error);
+      throw error;
+    }
   }
 } 
