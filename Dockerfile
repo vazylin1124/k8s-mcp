@@ -9,7 +9,7 @@ COPY tsconfig.json ./
 # 安装依赖
 RUN npm ci
 
-# 复制源代码
+# 复制源代码和配置文件
 COPY src/ ./src/
 COPY k8s_config.yaml ./
 
@@ -25,4 +25,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # 启动服务
-CMD ["npm", "run", "start:http"] 
+CMD ["node", "dist/index.js"] 

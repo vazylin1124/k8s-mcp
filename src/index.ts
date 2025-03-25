@@ -1,7 +1,8 @@
-import express, { Request, Response } from 'express';
-import { K8sClient } from './k8s.client';
-import { MCPController } from './mcp.controller';
-import { V1Pod, V1ContainerStatus, V1PodCondition } from '@kubernetes/client-node';
+import express from 'express';
+import type { Request, Response } from 'express';
+import { K8sClient } from './k8s.client.js';
+import { MCPController } from './mcp.controller.js';
+import type { V1Pod, V1ContainerStatus, V1PodCondition } from '@kubernetes/client-node';
 import { createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import * as readline from 'readline';

@@ -1,11 +1,12 @@
 import * as k8s from '@kubernetes/client-node';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { parse, stringify } from 'yaml';
+import { K8sConfigManager } from './k8s.config.js';
+import { MockK8sClient } from './k8s.mock.js';
+import { tmpdir } from 'os';
 import { MCPConfig } from './types/mcp.config';
 import * as yaml from 'yaml';
-import { MockK8sClient } from './k8s.mock';
-import { K8sConfigManager } from './k8s.config';
 
 // 创建自定义日志函数
 const log = {
@@ -23,7 +24,7 @@ export class K8sClient {
   private useMock: boolean = false;
 
   private constructor() {
-    this.configPath = path.join(os.homedir(), '.cursor', 'mcp.json');
+    this.configPath = join(os.homedir(), '.cursor', 'mcp.json');
     this.mockClient = MockK8sClient.getInstance();
   }
 
@@ -60,7 +61,7 @@ export class K8sClient {
         users: []
       };
 
-      const tempConfigPath = path.join(os.tmpdir(), 'k8s-mcp-config.yaml');
+      const tempConfigPath = join(os.tmpdir(), 'k8s-mcp-config.yaml');
       fs.writeFileSync(tempConfigPath, yaml.stringify(tempConfig));
       
       try {
