@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { K8sClient } from './k8s.client';
 import { MCPController } from './mcp.controller';
 import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
+import { createServer } from 'net';
 
 // 创建自定义日志函数
 const log = {
@@ -209,6 +210,35 @@ app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 const host = '0.0.0.0';
 const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
 
-app.listen(portNumber, host, () => {
-  log.info(`K8s MCP Service is running on http://${host}:${portNumber}`);
-});
+// 在启动服务器之前检查端口是否被占用
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer()
+      .listen(port, () => {
+        server.close();
+        resolve(true);
+      })
+      .on('error', () => {
+        resolve(false);
+      });
+  });
+}
+
+async function startServer() {
+  try {
+    const available = await isPortAvailable(portNumber);
+    if (!available) {
+      log.error(`Port ${portNumber} is already in use. Please use a different port or stop the existing process.`);
+      process.exit(1);
+    }
+
+    app.listen(portNumber, host, () => {
+      log.info(`K8s MCP Service is running on http://${host}:${portNumber}`);
+    });
+  } catch (error) {
+    log.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

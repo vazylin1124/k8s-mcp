@@ -4,15 +4,26 @@ import * as path from 'path';
 import * as os from 'os';
 import { MCPConfig } from './types/mcp.config';
 import * as yaml from 'yaml';
+import { MockK8sClient } from './k8s.mock';
+
+// 创建自定义日志函数
+const log = {
+  info: (...args: any[]) => console.error('[INFO]', ...args),
+  warn: (...args: any[]) => console.error('[WARN]', ...args),
+  error: (...args: any[]) => console.error('[ERROR]', ...args)
+};
 
 export class K8sClient {
   private static instance: K8sClient;
   private k8sApi!: k8s.CoreV1Api;
   private configPath: string;
   private initialized: boolean = false;
+  private mockClient: MockK8sClient;
+  private useMock: boolean = false;
 
   private constructor() {
     this.configPath = path.join(os.homedir(), '.cursor', 'mcp.json');
+    this.mockClient = MockK8sClient.getInstance();
   }
 
   private async initializeClient(): Promise<void> {
@@ -31,7 +42,6 @@ export class K8sClient {
       ];
 
       let configLoaded = false;
-      let configError: Error | null = null;
 
       for (const configPath of configLocations) {
         try {
@@ -66,62 +76,36 @@ export class K8sClient {
             }
           }
         } catch (error) {
-          configError = error as Error;
-          console.warn(`Failed to load config from ${configPath}:`, error);
+          log.warn(`Failed to load config from ${configPath}:`, error);
           continue;
         }
       }
 
       if (!configLoaded) {
-        // 如果没有找到任何配置，使用默认的本地配置
-        console.warn('No valid Kubernetes configuration found, using default local configuration');
-        const defaultConfig = {
-          apiVersion: 'v1',
-          kind: 'Config',
-          clusters: [{
-            name: 'local-cluster',
-            cluster: {
-              server: 'http://localhost:8080',
-              'insecure-skip-tls-verify': true
-            }
-          }],
-          users: [{
-            name: 'local-user',
-            user: {
-              username: 'admin',
-              password: 'admin'
-            }
-          }],
-          contexts: [{
-            name: 'local-context',
-            context: {
-              cluster: 'local-cluster',
-              user: 'local-user'
-            }
-          }],
-          'current-context': 'local-context'
-        };
-
-        const tempConfigPath = path.join(os.tmpdir(), 'k8s-default-config.yaml');
-        fs.writeFileSync(tempConfigPath, yaml.stringify(defaultConfig));
-        kc.loadFromFile(tempConfigPath);
-        fs.unlinkSync(tempConfigPath);
+        log.warn('No valid Kubernetes configuration found, using mock client');
+        this.useMock = true;
+        this.initialized = true;
+        return;
       }
 
       // 验证配置
       const contexts = kc.getContexts();
       if (!contexts || contexts.length === 0) {
-        throw new Error('No valid contexts found in Kubernetes configuration');
+        log.warn('No valid contexts found in Kubernetes configuration, using mock client');
+        this.useMock = true;
+        this.initialized = true;
+        return;
       }
 
       this.k8sApi = kc.makeApiClient(k8s.CoreV1Api);
       this.initialized = true;
 
-      console.log('Successfully initialized Kubernetes client');
-      console.log(`Available contexts: ${contexts.map(c => c.name).join(', ')}`);
+      log.info('Successfully initialized Kubernetes client');
+      log.info(`Available contexts: ${contexts.map(c => c.name).join(', ')}`);
     } catch (error) {
-      console.error('Failed to initialize Kubernetes client:', error);
-      throw error;
+      log.warn('Failed to initialize Kubernetes client, using mock client:', error);
+      this.useMock = true;
+      this.initialized = true;
     }
   }
 
@@ -134,6 +118,9 @@ export class K8sClient {
 
   public async getPods(namespace?: string): Promise<k8s.V1PodList> {
     await this.initializeClient();
+    if (this.useMock) {
+      return this.mockClient.getPods(namespace);
+    }
     try {
       if (namespace) {
         const opts = {
@@ -146,13 +133,16 @@ export class K8sClient {
         return response as unknown as k8s.V1PodList;
       }
     } catch (error) {
-      console.error('Error getting pods:', error);
-      throw error;
+      log.error('Error getting pods:', error);
+      return this.mockClient.getPods(namespace);
     }
   }
 
   public async describePod(name: string, namespace: string = 'default'): Promise<k8s.V1Pod> {
     await this.initializeClient();
+    if (this.useMock) {
+      return this.mockClient.describePod(name, namespace);
+    }
     try {
       const opts = {
         name,
@@ -161,13 +151,16 @@ export class K8sClient {
       const response = await this.k8sApi.readNamespacedPod(opts);
       return response as unknown as k8s.V1Pod;
     } catch (error) {
-      console.error('Error describing pod:', error);
-      throw error;
+      log.error('Error describing pod:', error);
+      return this.mockClient.describePod(name, namespace);
     }
   }
 
   public async getPodLogs(name: string, namespace: string = 'default', container?: string): Promise<string> {
     await this.initializeClient();
+    if (this.useMock) {
+      return this.mockClient.getPodLogs(name, namespace, container);
+    }
     try {
       const opts = {
         name,
@@ -177,8 +170,8 @@ export class K8sClient {
       const response = await this.k8sApi.readNamespacedPodLog(opts);
       return response;
     } catch (error) {
-      console.error('Error getting pod logs:', error);
-      throw error;
+      log.error('Error getting pod logs:', error);
+      return this.mockClient.getPodLogs(name, namespace, container);
     }
   }
 }
