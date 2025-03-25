@@ -12,7 +12,7 @@ const log = {
 };
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = parseInt(process.env.PORT || '8080', 10);
 const k8sClient = K8sClient.getInstance();
 const mcpController = new MCPController();
 
@@ -208,7 +208,6 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
 app.post('/mcp', (req, res) => mcpController.handleRequest(req, res));
 
 const host = '0.0.0.0';
-const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
 
 // 在启动服务器之前检查端口是否被占用
 function isPortAvailable(port: number): Promise<boolean> {
@@ -226,14 +225,14 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 async function startServer() {
   try {
-    const available = await isPortAvailable(portNumber);
+    const available = await isPortAvailable(port);
     if (!available) {
-      log.error(`Port ${portNumber} is already in use. Please use a different port or stop the existing process.`);
+      log.error(`Port ${port} is already in use. Please use a different port or stop the existing process.`);
       process.exit(1);
     }
 
-    app.listen(portNumber, host, () => {
-      log.info(`K8s MCP Service is running on http://${host}:${portNumber}`);
+    app.listen(port, host, () => {
+      log.info(`K8s MCP Service is running on http://${host}:${port}`);
     });
   } catch (error) {
     log.error('Failed to start server:', error);
