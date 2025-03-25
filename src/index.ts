@@ -3,6 +3,13 @@ import { K8sClient } from './k8s.client';
 import { MCPController } from './mcp.controller';
 import { V1Pod, V1ContainerStatus } from '@kubernetes/client-node';
 
+// 创建自定义日志函数
+const log = {
+  info: (...args: any[]) => console.error('[INFO]', ...args),
+  warn: (...args: any[]) => console.error('[WARN]', ...args),
+  error: (...args: any[]) => console.error('[ERROR]', ...args)
+};
+
 const app = express();
 const port = process.env.PORT || 3000;
 const k8sClient = K8sClient.getInstance();
@@ -10,6 +17,22 @@ const mcpController = new MCPController();
 
 // 中间件
 app.use(express.json());
+
+// 错误处理中间件
+app.use((err: any, req: Request, res: Response, next: any) => {
+  log.error('Express error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal server error',
+        data: err.message
+      },
+      id: null
+    });
+  }
+});
 
 interface ErrorResponse {
   content: Array<{ type: string; text: string }>;
@@ -42,7 +65,7 @@ app.post('/api/k8s/pods/status', async (req: Request<{}, {}, K8sRequestParams>, 
     
     for (const pod of podsResponse.items) {
       if (!pod.status || !pod.metadata || !pod.spec) {
-        console.warn('Skipping pod with missing required fields');
+        log.warn('Skipping pod with missing required fields');
         continue;
       }
 
@@ -115,7 +138,7 @@ app.post('/api/k8s/pods/status', async (req: Request<{}, {}, K8sRequestParams>, 
       content: [{ type: 'text', text: formattedOutput }]
     });
   } catch (error: any) {
-    console.error('Error in check_pod_status:', error);
+    log.error('Error in check_pod_status:', error);
     res.status(500).json({
       content: [{ type: 'text', text: `Error checking pod status: ${error.message}` }],
       isError: true
@@ -141,7 +164,7 @@ app.post('/api/k8s/pods/describe', async (req: Request<{}, {}, K8sRequestParams>
       content: [{ type: 'text', text: '```\n' + formattedOutput + '\n```' }]
     });
   } catch (error: any) {
-    console.error('Error in describe_pod:', error);
+    log.error('Error in describe_pod:', error);
     res.status(500).json({
       content: [{ type: 'text', text: `Error describing pod: ${error.message}` }],
       isError: true
@@ -172,7 +195,7 @@ app.post('/api/k8s/pods/logs', async (req: Request<{}, {}, K8sRequestParams>, re
       content: [{ type: 'text', text: '```\n' + logs + '\n```' }]
     });
   } catch (error: any) {
-    console.error('Error in get_pod_logs:', error);
+    log.error('Error in get_pod_logs:', error);
     res.status(500).json({
       content: [{ type: 'text', text: `Error retrieving pod logs: ${error.message}` }],
       isError: true
@@ -187,5 +210,5 @@ const host = '0.0.0.0';
 const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
 
 app.listen(portNumber, host, () => {
-  console.log(`K8s MCP Service is running on http://${host}:${portNumber}`);
+  log.info(`K8s MCP Service is running on http://${host}:${portNumber}`);
 });
