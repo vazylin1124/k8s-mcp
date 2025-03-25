@@ -36,6 +36,10 @@ export interface MCPInitializeParams {
 }
 
 export interface MCPInitializeResult {
+  /**
+   * Protocol version in the format "MCP/x.y"
+   * Example: "MCP/2.0"
+   */
   protocolVersion: string;
   serverInfo: {
     name: string;
