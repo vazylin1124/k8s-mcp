@@ -1,3 +1,5 @@
+export const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
+
 export interface MCPRequest {
   jsonrpc: '2.0';
   id: number | string;

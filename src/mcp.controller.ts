@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
-import { MCPRequest, MCPResponse, MCPInitializeParams, MCPInitializeResult, MCP_TOOLS } from './mcp.types';
+import {
+  MCPRequest,
+  MCPResponse,
+  MCPInitializeParams,
+  MCPInitializeResult,
+  MCP_TOOLS,
+  SUPPORTED_PROTOCOL_VERSION
+} from './mcp.types';
 import { K8sClient } from './k8s.client';
 
 // 创建自定义日志函数，使用标准错误输出
@@ -153,12 +160,8 @@ export class MCPController {
   }
 
   private async initialize(params: MCPInitializeParams): Promise<MCPInitializeResult> {
-    // 使用当前日期作为协议版本
-    const today = new Date();
-    const protocolVersion = today.toISOString().split('T')[0];
-
     return {
-      protocolVersion,
+      protocolVersion: SUPPORTED_PROTOCOL_VERSION,
       serverInfo: {
         name: 'k8s-mcp',
         version: '1.0.0'
