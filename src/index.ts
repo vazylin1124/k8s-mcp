@@ -335,21 +335,22 @@ if (isSmithery) {
     try {
       await new Promise<void>((resolve, reject) => {
         const tryListen = () => {
-          server.listen(port, '0.0.0.0')
-            .once('listening', () => {
-              log.info(`Server is running on port ${port}`);
-              resolve();
-            })
-            .once('error', (error: any) => {
-              if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
-                log.warn(`Port ${port} is in use, trying port ${port + 1}`);
-                server.close();
-                port++;
-                tryListen();
-              } else {
-                reject(error);
-              }
-            });
+          server.close(() => {
+            server.listen(port, '0.0.0.0')
+              .once('listening', () => {
+                log.info(`Server is running on port ${port}`);
+                resolve();
+              })
+              .once('error', (error: any) => {
+                if (error.code === 'EADDRINUSE' && retryCount < maxRetries) {
+                  log.warn(`Port ${port} is in use, trying port ${port + 1}`);
+                  port++;
+                  tryListen();
+                } else {
+                  reject(error);
+                }
+              });
+          });
         };
         
         tryListen();
@@ -357,7 +358,13 @@ if (isSmithery) {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Failed to start server: ${errorMessage}`);
-      process.exit(1);
+      if (retryCount >= maxRetries) {
+        log.error(`Maximum retry attempts (${maxRetries}) reached. Exiting...`);
+        process.exit(1);
+      }
+      // 等待一秒后重试
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return startServer(retryCount + 1);
     }
   }
 

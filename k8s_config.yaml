@@ -3,7 +3,7 @@ kind: Config
 clusters:
 - name: default
   cluster:
-    server: https://kubernetes.default.svc
+    server: http://localhost:8080
     insecure-skip-tls-verify: true
 contexts:
 - name: default

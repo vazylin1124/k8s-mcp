@@ -8,13 +8,7 @@ import {
   SUPPORTED_PROTOCOL_VERSION
 } from '../types/mcp.types';
 import { K8sClient } from '../services/k8s.client';
-
-// 创建自定义日志函数，使用标准错误输出
-const log = {
-  info: (...args: any[]) => console.error('[INFO]', ...args),
-  warn: (...args: any[]) => console.error('[WARN]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args)
-};
+import { log } from '../utils/logger';
 
 interface JsonRpcRequest {
   jsonrpc: string;
