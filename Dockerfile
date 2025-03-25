@@ -5,6 +5,7 @@ WORKDIR /app
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY .env ./
 
 # 安装依赖
 RUN npm install
@@ -17,6 +18,10 @@ RUN npm run build
 
 # 清理开发依赖
 RUN npm prune --production
+
+# 设置环境变量
+ENV PORT=8080
+ENV NODE_ENV=production
 
 # 暴露端口
 EXPOSE 8080
