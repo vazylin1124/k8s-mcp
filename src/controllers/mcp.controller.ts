@@ -63,7 +63,7 @@ export class MCPController {
     ];
   }
 
-  public async handleWebSocketRequest(request: JsonRpcRequest): Promise<JsonRpcResponse> {
+  public async handleWebSocketRequest(request: JsonRpcRequest): Promise<JsonRpcResponse | void> {
     try {
       // 验证 JSON-RPC 请求
       if (!this.isValidJsonRpcRequest(request)) {
@@ -114,6 +114,11 @@ export class MCPController {
           };
       }
 
+      // 如果是通知类请求（没有 id），则不返回响应
+      if (request.id === undefined) {
+        return;
+      }
+
       return {
         jsonrpc: '2.0',
         result,
@@ -121,6 +126,10 @@ export class MCPController {
       };
     } catch (error: any) {
       log.error('Error handling WebSocket request:', error);
+      // 如果是通知类请求（没有 id），则不返回响应
+      if (request.id === undefined) {
+        return;
+      }
       return {
         jsonrpc: '2.0',
         error: {
@@ -149,7 +158,7 @@ export class MCPController {
       request &&
       request.jsonrpc === '2.0' &&
       typeof request.method === 'string' &&
-      (request.id === null || typeof request.id === 'string' || typeof request.id === 'number')
+      (request.id === undefined || request.id === null || typeof request.id === 'string' || typeof request.id === 'number')
     );
   }
 

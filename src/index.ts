@@ -42,8 +42,10 @@ if (isSmithery) {
       // 解析并处理请求
       const request = JSON.parse(line);
       const response = await mcpController.handleWebSocketRequest(request);
-      // 将响应写入标准输出
-      process.stdout.write(JSON.stringify(response) + '\n');
+      // 只有在有响应时才输出
+      if (response) {
+        process.stdout.write(JSON.stringify(response) + '\n');
+      }
     } catch (error: any) {
       // 错误也需要以 JSON-RPC 格式返回
       process.stdout.write(JSON.stringify({
@@ -277,8 +279,14 @@ if (isSmithery) {
     try {
       log.info('Received HTTP request:', JSON.stringify(req.body));
       const response = await mcpController.handleWebSocketRequest(req.body);
-      log.info('Sending HTTP response:', JSON.stringify(response));
-      res.json(response);
+      // 只有在有响应时才返回
+      if (response) {
+        log.info('Sending HTTP response:', JSON.stringify(response));
+        res.json(response);
+      } else {
+        // 对于通知类请求，返回 204 No Content
+        res.status(204).end();
+      }
     } catch (error: any) {
       log.error(`Error handling HTTP request: ${error.message}`);
       res.status(500).json({
@@ -309,9 +317,11 @@ if (isSmithery) {
         log.info('Received WebSocket request:', JSON.stringify(request));
         
         const response = await mcpController.handleWebSocketRequest(request);
-        log.info('Sending WebSocket response:', JSON.stringify(response));
-        
-        ws.send(JSON.stringify(response));
+        // 只有在有响应时才发送
+        if (response) {
+          log.info('Sending WebSocket response:', JSON.stringify(response));
+          ws.send(JSON.stringify(response));
+        }
       } catch (error: any) {
         log.error(`WebSocket error: ${error.message}`);
         ws.send(JSON.stringify({
