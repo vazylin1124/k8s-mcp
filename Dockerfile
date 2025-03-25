@@ -19,7 +19,8 @@ RUN npm run build
 RUN npm prune --production
 
 # 复制环境配置文件
-COPY .env* ./
+COPY .env.example .env
+COPY k8s_config.yaml ./
 
 # 如果 .env 文件不存在，则创建默认配置
 RUN if [ ! -f .env ]; then \
@@ -33,7 +34,7 @@ RUN if [ ! -f .env ]; then \
 # 设置环境变量
 ENV PORT=3000
 ENV NODE_ENV=production
-ENV SMITHERY=true
+ENV SMITHERY=false
 
 # 暴露端口
 EXPOSE 3000
