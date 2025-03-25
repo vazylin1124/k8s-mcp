@@ -1,18 +1,12 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { K8sClient } from './k8s.client.js';
-import { MCPController } from './mcp.controller.js';
+import { K8sClient } from './services/k8s.client';
+import { MCPController } from './controllers/mcp.controller';
 import type { V1Pod, V1ContainerStatus, V1PodCondition } from '@kubernetes/client-node';
 import { createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import * as readline from 'readline';
-
-// 创建自定义日志函数，使用标准错误输出
-const log = {
-  info: (...args: any[]) => process.stderr.write(`[INFO] ${args.join(' ')}\n`),
-  warn: (...args: any[]) => process.stderr.write(`[WARN] ${args.join(' ')}\n`),
-  error: (...args: any[]) => process.stderr.write(`[ERROR] ${args.join(' ')}\n`)
-};
+import { log } from './utils/logger';
 
 // 检查是否通过 Smithery 运行
 const isSmithery = process.env.SMITHERY === 'true';

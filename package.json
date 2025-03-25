@@ -2,15 +2,13 @@
   "name": "k8s-mcp",
   "version": "1.0.0",
   "description": "Kubernetes MCP Service",
-  "type": "module",
-  "main": "dist/index.js",
   "scripts": {
     "dev:http": "SMITHERY=false NODE_ENV=development node --loader ts-node/esm src/index.ts",
     "dev:smithery": "SMITHERY=true NODE_ENV=development node --loader ts-node/esm src/index.ts",
     "build": "tsc",
-    "start:http": "SMITHERY=false NODE_ENV=production node dist/index.js",
-    "start:smithery": "SMITHERY=true NODE_ENV=production node dist/index.js",
-    "start": "node dist/index.js"
+    "start:http": "SMITHERY=false NODE_ENV=production node -r dotenv/config dist/index.js",
+    "start:smithery": "SMITHERY=true NODE_ENV=production node -r dotenv/config dist/index.js",
+    "start": "node -r dotenv/config dist/index.js"
   },
   "keywords": [
     "kubernetes",
@@ -22,6 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "@kubernetes/client-node": "^0.20.0",
+    "dotenv": "^16.4.7",
     "express": "^4.18.2",
     "ws": "^8.16.0",
     "yaml": "^2.3.4"
@@ -31,6 +30,7 @@
     "@types/node": "^20.11.19",
     "@types/ws": "^8.5.10",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }
 }

@@ -3,9 +3,9 @@ import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir, tmpdir } from 'os';
 import { parse, stringify } from 'yaml';
-import { K8sConfigManager } from './k8s.config.js';
-import { MockK8sClient } from './k8s.mock.js';
-import { MCPConfig } from './types/mcp.config.js';
+import { K8sConfigManager } from './k8s.config';
+import { MockK8sClient } from './k8s.mock';
+import { MCPConfig } from '../types/mcp.config';
 
 // 创建自定义日志函数，使用标准错误输出
 const log = {

@@ -6,8 +6,8 @@ import {
   MCPInitializeResult,
   MCP_TOOLS,
   SUPPORTED_PROTOCOL_VERSION
-} from './types/mcp.types.js';
-import { K8sClient } from './k8s.client.js';
+} from '../types/mcp.types';
+import { K8sClient } from '../services/k8s.client';
 
 // 创建自定义日志函数，使用标准错误输出
 const log = {
