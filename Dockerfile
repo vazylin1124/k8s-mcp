@@ -38,4 +38,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # 直接使用 node 命令启动服务，避免 npm 的额外输出
-CMD ["node", "-r", "dotenv/config", "dist/index.js"] 
+ENTRYPOINT ["node", "-r", "dotenv/config", "dist/index.js"] 

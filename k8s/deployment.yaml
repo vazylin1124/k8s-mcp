@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-mcp
+  labels:
+    app: k8s-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-mcp
+  template:
+    metadata:
+      labels:
+        app: k8s-mcp
+    spec:
+      containers:
+      - name: k8s-mcp
+        image: k8s-mcp:latest
+        imagePullPolicy: IfNotPresent
+        command: ["node"]
+        args: ["-r", "dotenv/config", "dist/index.js"]
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          value: "production"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-mcp
+spec:
+  selector:
+    app: k8s-mcp
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP 
