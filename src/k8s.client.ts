@@ -99,12 +99,11 @@ export class K8sClient {
     }
     try {
       if (namespace) {
-        const opts = { namespace } as k8s.CoreV1ApiListNamespacedPodRequest;
-        const response = await this.k8sApi.listNamespacedPod(opts);
-        return response;
+        const response = await this.k8sApi.listNamespacedPod(namespace);
+        return response.body;
       } else {
         const response = await this.k8sApi.listPodForAllNamespaces();
-        return response;
+        return response.body;
       }
     } catch (error) {
       log.error('Error getting pods:', error);
@@ -118,9 +117,8 @@ export class K8sClient {
       return this.mockClient.describePod(name, namespace);
     }
     try {
-      const opts = { name, namespace } as k8s.CoreV1ApiReadNamespacedPodRequest;
-      const response = await this.k8sApi.readNamespacedPod(opts);
-      return response;
+      const response = await this.k8sApi.readNamespacedPod(name, namespace);
+      return response.body;
     } catch (error) {
       log.error('Error describing pod:', error);
       return this.mockClient.describePod(name, namespace);
@@ -133,9 +131,8 @@ export class K8sClient {
       return this.mockClient.getPodLogs(name, namespace, container);
     }
     try {
-      const opts = { name, namespace, container } as k8s.CoreV1ApiReadNamespacedPodLogRequest;
-      const response = await this.k8sApi.readNamespacedPodLog(opts);
-      return response;
+      const response = await this.k8sApi.readNamespacedPodLog(name, namespace, container);
+      return response.body;
     } catch (error) {
       log.error('Error getting pod logs:', error);
       return this.mockClient.getPodLogs(name, namespace, container);
